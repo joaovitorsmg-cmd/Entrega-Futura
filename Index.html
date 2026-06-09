@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Entrega Futura — Agroquima</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.19.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  /* Tema escuro — idêntico ao painel de Vencidos */
+  --bg:#0a1322;--bg2:#101d33;--bg3:#16243d;
+  --text:#e8f0fb;--text2:#8ba2c2;--text3:#54667f;
+  --border:#1a2c47;--border-2:#27406a;
+  --brand:#2b7fd4;--brand2:#4d96e0;--brand-lt:#0c2a4d;--brand-glow:rgba(43,127,212,.2);
+  --brand-dk:#9cc4ec;--accent:#2b7fd4;
+  --red:#e25c4d;--red-lt:#2a1110;--red-dk:#f08a7e;
+  --green:#35b87a;--green-lt:#0c2417;--green-dk:#5fd4a0;
+  --amber:#e0a73a;--amber-lt:#2a1f08;--amber-dk:#f2c451;
+  --purple:#6b7cd8;--purple-lt:#15183a;
+  --gray:#8696ab;--gray-lt:#101d33;
+  --header-dk:#0a1322;
+  --r:10px;--r-sm:6px;--r-lg:14px;
+  --sh:0 1px 3px rgba(0,0,0,.4);--sh-md:0 6px 18px rgba(0,0,0,.5);--sh-lg:0 12px 32px rgba(0,0,0,.6);
+  --mono:"SFMono-Regular",ui-monospace,"Cascadia Code","Consolas",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg3);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:6px;border:2px solid var(--bg2)}
+::-webkit-scrollbar-thumb:hover{background:var(--gray)}
+
+/* ---------- topbar ---------- */
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;
+  height:64px;gap:16px;position:sticky;top:0;z-index:100;box-shadow:var(--sh)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-logo{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;box-shadow:0 2px 10px var(--brand-glow);background:linear-gradient(135deg,var(--brand),var(--brand2))}
+.brand-logo svg{display:block}
+.brand h1{font-size:16px;font-weight:800;letter-spacing:.8px;color:var(--text)}
+.brand .sub{font-size:10.5px;color:var(--text3);font-weight:600;letter-spacing:.4px}
+.topbar .spacer{flex:1}
+.topbar .meta{text-align:right;font-size:11px;color:var(--text2);line-height:1.5;margin-right:6px}
+.topbar .meta b{color:var(--text);font-weight:700}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--r-sm);font-size:13px;
+  font-weight:600;cursor:pointer;border:1px solid var(--border-2);background:var(--bg);color:var(--text);transition:.15s;white-space:nowrap}
+.btn:hover{background:var(--bg2);border-color:var(--brand)}
+.btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand2));border-color:transparent;color:#fff;box-shadow:0 2px 8px var(--brand-glow)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--text2)}
+.btn.ghost:hover{background:var(--bg3);color:var(--text)}
+.btn i{font-size:16px}
+.btn.sm{padding:6px 11px;font-size:12px}
+
+/* ---------- layout: sidebar + main ---------- */
+.app{display:none}
+.app.on{display:flex;min-height:calc(100vh - 64px)}
+.sidebar{width:236px;background:var(--bg);border-right:1px solid var(--border);flex-shrink:0;padding:16px 0;
+  position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto}
+.nav-group{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;
+  padding:16px 18px 7px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 18px;cursor:pointer;color:var(--text2);
+  font-size:13px;font-weight:500;border-left:3px solid transparent;transition:.12s;position:relative;background:none;border-top:none;border-right:none;border-bottom:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg2);color:var(--text)}
+.nav-item.on{background:var(--brand-lt);color:var(--brand);border-left-color:var(--brand);font-weight:600}
+.nav-item i{font-size:18px;flex-shrink:0}
+.nav-item .badge{margin-left:auto;background:var(--red-lt);color:var(--red);font-size:10.5px;font-weight:700;
+  padding:1px 7px;border-radius:9px}
+.main{flex:1;min-width:0;padding:24px 28px 60px;max-width:1600px}
+
+.page{display:none}
+.page.on{display:block;animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.page-head{margin-bottom:22px}
+.page-head h2{font-size:21px;font-weight:800;display:flex;align-items:center;gap:10px;color:var(--text)}
+.page-head h2 i{color:var(--brand);font-size:24px}
+.page-head p{color:var(--text2);font-size:13.5px;margin-top:3px}
+
+.section-title{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);
+  margin:28px 0 13px;display:flex;align-items:center;gap:10px}
+.section-title::after{content:"";flex:1;height:1px;background:var(--border)}
+
+/* ---------- dropzone ---------- */
+.intro-wrap{max-width:1100px;margin:0 auto;padding:40px 24px}
+.dropzone{border:2px dashed var(--border-2);border-radius:16px;padding:56px 40px;text-align:center;
+  background:var(--bg);transition:.2s;box-shadow:var(--sh)}
+.dropzone.drag{border-color:var(--brand);background:var(--brand-lt)}
+.dropzone .ic{width:66px;height:66px;margin:0 auto 18px;border-radius:16px;background:var(--brand-lt);
+  display:grid;place-items:center}
+.dropzone .ic i{font-size:32px;color:var(--brand)}
+.dropzone h3{font-size:20px;margin-bottom:8px;color:var(--text)}
+.dropzone p{color:var(--text2);font-size:13.5px;margin-bottom:5px}
+.dropzone .hint{color:var(--text3);font-size:12px;margin-top:18px;line-height:1.7}
+.dropzone .hint code{background:var(--bg3);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--brand)}
+
+/* ---------- cards / KPIs ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(208px,1fr));gap:14px}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.kpi .lab{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+.kpi .lab i{font-size:14px}
+.kpi .val{font-size:25px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums;color:var(--text)}
+.kpi .val small{font-size:13px;font-weight:600;color:var(--text3);margin-left:3px}
+.kpi .foot{font-size:11.5px;color:var(--text2);margin-top:6px}
+.kpi.g{border-top:3px solid var(--green)} .kpi.g .val{color:var(--green-dk)}
+.kpi.r{border-top:3px solid var(--red)} .kpi.r .val{color:var(--red-dk)}
+.kpi.a{border-top:3px solid var(--amber)} .kpi.a .val{color:var(--amber-dk)}
+.kpi.b{border-top:3px solid var(--brand)} .kpi.b .val{color:var(--brand)}
+
+/* ---------- filter bar ---------- */
+.filterbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh)}
+.filterbar .grp{display:flex;flex-direction:column;gap:5px}
+.filterbar label{font-size:10.5px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.filterbar select,.filterbar input{background:var(--bg);border:1px solid var(--border-2);color:var(--text);
+  padding:8px 11px;border-radius:var(--r-sm);font-size:13px;font-family:inherit;min-width:150px}
+.filterbar input{min-width:230px}
+.filterbar select:focus,.filterbar input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-glow)}
+.filterbar .spacer{flex:1}
+.chip{padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:600;border:1px solid var(--border-2);
+  background:var(--bg);color:var(--text2);transition:.15s;display:inline-flex;align-items:center;gap:5px}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip:hover:not(.on){border-color:var(--brand);color:var(--text)}
+.chip i{font-size:14px}
+.btn-clear{padding:8px 13px;border-radius:var(--r-sm);font-size:12.5px;font-weight:600;border:1px solid var(--border-2);
+  background:var(--bg);color:var(--gray);display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.btn-clear:hover{background:var(--red-lt);border-color:var(--red);color:var(--red)}
+.btn-clear i{font-size:15px}
+
+/* ---------- table ---------- */
+.tablewrap{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);overflow:auto;max-height:74vh;box-shadow:var(--sh)}
+.tablewrap.full{max-height:none}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+thead th{position:sticky;top:0;background:var(--bg2);padding:11px 13px;text-align:left;font-size:11px;font-weight:700;
+  color:var(--text2);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);
+  white-space:nowrap;user-select:none;z-index:2}
+thead th.sortable{cursor:pointer;transition:.12s}
+thead th.sortable:hover{background:var(--brand-lt);color:var(--brand)}
+thead th .ar{margin-left:4px;font-size:11px;opacity:.85}
+thead th.num,thead th.money{text-align:right}
+thead th.center{text-align:center}
+tbody td{padding:9px 13px;border-bottom:1px solid var(--border);white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text)}
+tbody tr:hover{background:var(--bg2)}
+tbody tr:last-child td{border-bottom:none}
+.num{text-align:right;font-family:var(--mono);font-size:12px}
+.money{text-align:right;font-family:var(--mono);font-size:12px}
+.center{text-align:center}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.2px}
+.pill.total{background:var(--green-lt);color:var(--green-dk)}
+.pill.parc{background:var(--amber-lt);color:var(--amber-dk)}
+.pill.ret{background:var(--red-lt);color:var(--red-dk)}
+.pill.nao{background:var(--bg3);color:var(--text2)}
+.pill.aguard{background:var(--brand-lt);color:var(--brand-dk)}
+.pill.reinc{background:var(--red-lt);color:var(--red-dk);box-shadow:0 0 0 1px var(--red) inset}
+.cobr-info{font-size:10.5px;color:var(--text3);margin-top:2px}
+.cobr-info b{color:var(--text2)}
+.btn-mark{background:var(--bg3);border:1px solid var(--border-2);border-radius:6px;padding:5px 9px;color:var(--text2);
+  font-size:11px;font-weight:600;display:inline-flex;gap:4px;align-items:center;white-space:nowrap;transition:.15s}
+.btn-mark:hover{border-color:var(--green);color:var(--green)}
+.btn-mark.done{background:var(--green-lt);border-color:var(--green);color:var(--green-dk)}
+.btn-mark.done:hover{border-color:var(--red);color:var(--red)}
+.btn-mark i{font-size:13px}
+.tag-atr{background:var(--red-lt);color:var(--red);font-weight:700;padding:2px 8px;border-radius:5px;font-size:11px}
+.tag-ok{color:var(--text3);font-size:11px}
+.muted{color:var(--text3)}
+.strong{font-weight:700;color:var(--text)}
+.filial-cell .sg{font-weight:700;color:var(--brand);font-size:11px;font-family:var(--mono)}
+.filial-cell .nm{color:var(--text);font-size:12.5px}
+.btn-cobrar{background:linear-gradient(135deg,var(--brand),var(--brand2));border:none;border-radius:6px;
+  padding:6px 12px;color:#fff;font-size:11.5px;font-weight:700;display:inline-flex;gap:5px;align-items:center;
+  white-space:nowrap;box-shadow:0 1px 4px var(--brand-glow);transition:.15s}
+.btn-cobrar:hover{filter:brightness(1.08)}
+.btn-cobrar i{font-size:14px}
+
+.empty{text-align:center;padding:56px 20px;color:var(--text3)}
+.empty i{font-size:46px;opacity:.4;display:block;margin-bottom:12px}
+
+/* bars in grouped tables */
+.gtable .bar{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;width:90px;display:inline-block;vertical-align:middle;margin-right:8px}
+.gtable .bar i{display:block;height:100%;background:var(--red);font-size:0}
+.rank{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--bg3);
+  font-size:11px;font-weight:700;color:var(--text2);font-family:var(--mono)}
+.rank.top{background:var(--amber);color:#fff}
+.okcheck{color:var(--green);font-weight:700}
+.warncheck{color:var(--amber);font-weight:700}
+
+/* insights */
+.insight{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;margin-bottom:14px;box-shadow:var(--sh);border-left:4px solid var(--brand)}
+.insight.warn{border-left-color:var(--amber)}
+.insight.crit{border-left-color:var(--red)}
+.insight.good{border-left-color:var(--green)}
+.insight h3{font-size:15px;margin-bottom:8px;display:flex;align-items:center;gap:9px;color:var(--text)}
+.insight h3 i{font-size:20px;color:var(--brand)}
+.insight.warn h3 i{color:var(--amber)} .insight.crit h3 i{color:var(--red)} .insight.good h3 i{color:var(--green)}
+.insight .big{font-size:24px;font-weight:800;color:var(--brand);margin:2px 0 6px}
+.insight.warn .big{color:var(--amber-dk)} .insight.crit .big{color:var(--red-dk)} .insight.good .big{color:var(--green-dk)}
+.insight p{color:var(--text2);font-size:13px;line-height:1.6}
+.insight p b{color:var(--text)}
+.insight ul{margin:11px 0 0;list-style:none}
+.insight li{padding:7px 0;border-top:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;gap:14px;align-items:center}
+.insight li:first-child{border-top:none}
+.insight li .v{font-family:var(--mono);font-weight:700;white-space:nowrap;color:var(--text)}
+.insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.insight-grid{grid-template-columns:1fr}}
+.parecer{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;box-shadow:var(--sh)}
+.parecer h3{font-size:14px;font-weight:700;color:var(--brand);display:flex;align-items:center;gap:8px;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px}
+.parecer p{color:var(--text2);font-size:13.5px;line-height:1.7;margin-bottom:12px}
+.parecer p b{color:var(--text)}
+.parecer .rec{background:var(--brand-lt);border-radius:var(--r-sm);padding:13px 16px;font-size:13px;color:var(--text);line-height:1.7}
+.parecer .rec b{color:var(--brand-dk)}
+
+/* expandable row (recorrência) */
+.exp-row{cursor:pointer}
+.exp-row:hover{background:var(--brand-lt)!important}
+.exp-row .chev{transition:.2s;display:inline-block;color:var(--text3)}
+.exp-row.open .chev{transform:rotate(90deg);color:var(--brand)}
+.detail-row td{background:var(--bg2);padding:0!important;border-bottom:1px solid var(--border)}
+.detail-inner{padding:6px 13px 13px 46px}
+.detail-inner table{font-size:11.5px;background:var(--bg);border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--border)}
+.detail-inner thead th{background:var(--bg3);font-size:10px;padding:7px 10px}
+.detail-inner td{padding:6px 10px}
+
+/* ---------- modal ---------- */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(16,40,69,.55);z-index:200;backdrop-filter:blur(3px);
+  align-items:flex-start;justify-content:center;padding:40px 20px;overflow:auto}
+.modal-bg.on{display:flex}
+.modal{background:var(--bg);border-radius:14px;max-width:780px;width:100%;box-shadow:var(--sh-lg)}
+.modal header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.modal header h3{font-size:16px;flex:1;color:var(--text)}
+.modal header h3 .fil{color:var(--brand)}
+.modal header .x{background:none;border:none;color:var(--text3);font-size:24px;line-height:1;padding:2px 8px;border-radius:6px}
+.modal header .x:hover{background:var(--bg2);color:var(--text)}
+.modal .body{padding:20px 22px;max-height:64vh;overflow:auto}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.field input,.field textarea{width:100%;background:var(--bg);border:1px solid var(--border-2);color:var(--text);
+  padding:10px 12px;border-radius:8px;font-size:13px;font-family:inherit;line-height:1.55}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-glow)}
+.field textarea{min-height:240px;resize:vertical}
+.recips{display:flex;flex-wrap:wrap;gap:6px}
+.recips .r{background:var(--bg2);border:1px solid var(--border);padding:5px 11px;border-radius:20px;font-size:12px;color:var(--text2)}
+.recips .r b{color:var(--text);font-weight:600}
+.recips .r.sender{background:var(--brand-lt);border-color:var(--brand);color:var(--brand-dk)}
+.modal footer{padding:16px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.note{font-size:11.5px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-top:6px;line-height:1.55}
+.note code{background:var(--bg3);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--brand)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);
+  color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:300;transition:.3s;box-shadow:var(--sh-lg);opacity:0}
+.toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+
+@media(max-width:860px){
+  .sidebar{display:none}
+  .main{padding:18px 14px 50px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-logo">
+      <svg viewBox="0 0 42 42" width="26" height="26" aria-hidden="true">
+        <rect x="2"  y="2"  width="17" height="17" rx="3.5" fill="#fff" opacity=".95"/>
+        <rect x="23" y="2"  width="17" height="17" rx="3.5" fill="#bcd6f5"/>
+        <rect x="2"  y="23" width="17" height="17" rx="3.5" fill="#bcd6f5"/>
+        <rect x="23" y="23" width="17" height="17" rx="3.5" fill="#fff" opacity=".95"/>
+      </svg>
+    </div>
+    <div>
+      <h1>AGROQUIMA</h1>
+      <div class="sub">Controle de Entrega Futura</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="meta" id="meta" style="display:none">
+    <div><b id="metaData">—</b></div>
+    <div id="metaFile" class="muted"></div>
+  </div>
+  <button class="btn ghost" id="btnReload" style="display:none" onclick="resetApp()">
+    <i class="ti ti-upload"></i> Novo relatório
+  </button>
+</div>
+
+<!-- ====================== DROPZONE ====================== -->
+<div id="intro" class="intro-wrap">
+  <div class="dropzone" id="dz">
+    <div class="ic"><i class="ti ti-file-spreadsheet"></i></div>
+    <h3>Carregue o relatório do sistema</h3>
+    <p>Arraste o arquivo <b>.xls</b> de Controle de Entrega Futura aqui</p>
+    <p class="muted">ou clique para selecionar</p>
+    <input type="file" id="file" accept=".xls,.xlsx" style="display:none">
+    <div class="hint">
+      O arquivo bruto é lido direto, sem tratamento prévio.<br>
+      A base das 30 filiais (auditor, regional, gerente, supervisor) já está embutida e o histórico é sincronizado na nuvem.<br>
+      Espera-se o export padrão: <code>relatorioControleEntregaFuturaXLS…</code>
+    </div>
+  </div>
+</div>
+
+<!-- ====================== APP ====================== -->
+<div class="app" id="app">
+  <nav class="sidebar">
+    <div class="nav-group">Visão geral</div>
+    <button class="nav-item on" data-pg="resumo"><i class="ti ti-layout-dashboard"></i> Resumo executivo</button>
+    <button class="nav-item" data-pg="insights"><i class="ti ti-bulb"></i> Insights & diagnóstico</button>
+    <button class="nav-item" data-pg="evolucao"><i class="ti ti-chart-line"></i> Evolução semanal</button>
+    <div class="nav-group">Ação de cobrança</div>
+    <button class="nav-item" data-pg="cobrar"><i class="ti ti-cash"></i> Cobrar agora <span class="badge" id="badgeCobrar">0</span></button>
+    <button class="nav-item" data-pg="auditoria"><i class="ti ti-clipboard-check"></i> Auditoria de cobrança <span class="badge" id="badgeReinc">0</span></button>
+    <button class="nav-item" data-pg="retidos"><i class="ti ti-lock"></i> Retidos</button>
+    <button class="nav-item" data-pg="recorrencia"><i class="ti ti-users"></i> Clientes recorrentes</button>
+    <div class="nav-group">Responsabilização</div>
+    <button class="nav-item" data-pg="filiais"><i class="ti ti-building-store"></i> Por filial</button>
+    <button class="nav-item" data-pg="auditores"><i class="ti ti-user-check"></i> Por auditor</button>
+    <button class="nav-item" data-pg="regionais"><i class="ti ti-map-pin"></i> Por regional</button>
+    <div class="nav-group">Base</div>
+    <button class="nav-item" data-pg="base"><i class="ti ti-table"></i> Base completa</button>
+    <button class="nav-item" data-pg="conferencia"><i class="ti ti-shield-check"></i> Conferência da base</button>
+  </nav>
+
+  <main class="main">
+    <!-- RESUMO -->
+    <div class="page on" id="pg-resumo">
+      <div class="page-head"><h2><i class="ti ti-layout-dashboard"></i> Resumo executivo</h2>
+        <p>Posição da entrega futura da rede — produto vendido e ainda não retirado.</p></div>
+      <div class="cards" id="cardsResumo"></div>
+      <div class="section-title">Resumo por linha de produto</div>
+      <div class="tablewrap full"><table id="tblLinha"></table></div>
+      <div class="section-title">Como ler — regra de cobrança</div>
+      <div class="insight">
+        <p style="margin-bottom:9px"><span class="pill total">Cobrar total</span> &nbsp; título quitado: o cliente já pagou por todo o saldo parado. <b>Force a entrega integral.</b></p>
+        <p style="margin-bottom:9px"><span class="pill parc">Cobrar parcial</span> &nbsp; parte do saldo já paga: libere a entrega só da quantidade paga; o restante fica retido até quitar.</p>
+        <p><span class="pill ret">Retido</span> &nbsp; cliente ainda não pagou: não entregue (risco). Se enrolar, o caminho é a devolução da entrega futura.</p>
+      </div>
+    </div>
+
+    <!-- INSIGHTS -->
+    <div class="page" id="pg-insights">
+      <div class="page-head"><h2><i class="ti ti-bulb"></i> Insights & diagnóstico</h2>
+        <p>Leitura crítica automática sobre o que a diretoria pode cobrar com maior impacto.</p></div>
+      <div id="insightsBox"></div>
+    </div>
+
+    <!-- EVOLUÇÃO -->
+    <div class="page" id="pg-evolucao">
+      <div class="page-head"><h2><i class="ti ti-chart-line"></i> Evolução semanal</h2>
+        <p>O que foi entregue desde a última importação e o histórico da rede.</p></div>
+      <div class="section-title">Comparação com a semana anterior</div>
+      <div id="cmpBox"></div>
+      <div class="section-title">Histórico de importações</div>
+      <div id="histStatus" class="note" style="margin-bottom:14px"></div>
+      <div class="tablewrap full"><table id="tblHist"></table></div>
+      <div class="section-title">O que foi entregue desde a última importação</div>
+      <div class="filterbar" id="fbEntregues"></div>
+      <div class="tablewrap"><table id="tblEntregues"></table></div>
+    </div>
+
+    <!-- COBRAR AGORA -->
+    <div class="page" id="pg-cobrar">
+      <div class="page-head"><h2><i class="ti ti-cash"></i> Cobrar agora</h2>
+        <p>Produto pago e parado — pronto para forçar a entrega. Clique em "Cobrar" para gerar o e-mail e o PDF da filial.</p></div>
+      <div class="cards" id="cardsCobrar" style="margin-bottom:18px"></div>
+      <div class="filterbar" id="fbCobrar"></div>
+      <div class="tablewrap"><table id="tblCobrar"></table></div>
+    </div>
+
+    <!-- AUDITORIA DE COBRANÇA -->
+    <div class="page" id="pg-auditoria">
+      <div class="page-head"><h2><i class="ti ti-clipboard-check"></i> Auditoria de cobrança</h2>
+        <p>O que já foi cobrado e o que não foi. Evita cobrar duas vezes o mesmo item e expõe quem foi cobrado e ignorou.</p></div>
+      <div id="cobrStatus" class="note" style="margin-bottom:14px"></div>
+      <div class="cards" id="cardsAudit" style="margin-bottom:18px"></div>
+      <div class="insight" style="margin-bottom:18px">
+        <p style="margin-bottom:9px"><span class="pill nao">Não cobrado</span> &nbsp; está parado e nunca foi cobrado. <b>É o que você deve cobrar agora.</b></p>
+        <p style="margin-bottom:9px"><span class="pill aguard">Cobrado · aguardando</span> &nbsp; você já cobrou e ainda está dentro do prazo de <b id="prazoTxt">${DIAS_REINCIDENCIA}</b> dias. Não recobre.</p>
+        <p style="margin-bottom:9px"><span class="pill reinc">Reincidente</span> &nbsp; você cobrou há mais de <b>${DIAS_REINCIDENCIA}</b> dias e continua parado — <b>foi ignorado. Escale para a diretoria.</b></p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px">
+          <label style="font-size:12px;color:var(--text2)">Prazo para virar reincidente:</label>
+          <input type="number" id="inpReinc" value="${DIAS_REINCIDENCIA}" min="1" max="90" style="width:80px;background:var(--bg);border:1px solid var(--border-2);color:var(--text);padding:6px 9px;border-radius:6px;font-size:13px">
+          <span style="font-size:12px;color:var(--text3)">dias</span>
+          <button class="btn sm" onclick="aplicarPrazo()"><i class="ti ti-check"></i> Aplicar</button>
+        </div>
+      </div>
+      <div class="filterbar" id="fbAudit"></div>
+      <div class="tablewrap"><table id="tblAudit"></table></div>
+    </div>
+
+    <!-- RETIDOS -->
+    <div class="page" id="pg-retidos">
+      <div class="page-head"><h2><i class="ti ti-lock"></i> Retidos</h2>
+        <p>Itens não pagos — não devem ser entregues. Candidatos a acompanhamento ou devolução da entrega futura.</p></div>
+      <div class="filterbar" id="fbRetidos"></div>
+      <div class="tablewrap"><table id="tblRetidos"></table></div>
+    </div>
+
+    <!-- RECORRÊNCIA -->
+    <div class="page" id="pg-recorrencia">
+      <div class="page-head"><h2><i class="ti ti-users"></i> Clientes recorrentes</h2>
+        <p>Clientes com vários itens ou alto valor em aberto. Clique numa linha para ver todos os pedidos do cliente.</p></div>
+      <div class="filterbar" id="fbRecor"></div>
+      <div class="tablewrap"><table id="tblRecor"></table></div>
+    </div>
+
+    <!-- POR FILIAL -->
+    <div class="page" id="pg-filiais">
+      <div class="page-head"><h2><i class="ti ti-building-store"></i> Por filial</h2>
+        <p>A filial do pedido é a responsável pela cobrança. Ordenado por valor retido (maior exposição parada).</p></div>
+      <div class="tablewrap full"><table class="gtable" id="tblFiliais"></table></div>
+    </div>
+
+    <!-- POR AUDITOR -->
+    <div class="page" id="pg-auditores">
+      <div class="page-head"><h2><i class="ti ti-user-check"></i> Por auditor responsável</h2>
+        <p>Carteira de cada auditor — quanto há para liberar e quanto está retido.</p></div>
+      <div class="tablewrap full"><table class="gtable" id="tblAuditores"></table></div>
+    </div>
+
+    <!-- POR REGIONAL -->
+    <div class="page" id="pg-regionais">
+      <div class="page-head"><h2><i class="ti ti-map-pin"></i> Por gerente regional</h2>
+        <p>Exposição por regional para cobrança em cascata até a loja.</p></div>
+      <div class="tablewrap full"><table class="gtable" id="tblRegionais"></table></div>
+    </div>
+
+    <!-- BASE COMPLETA -->
+    <div class="page" id="pg-base">
+      <div class="page-head"><h2><i class="ti ti-table"></i> Base completa</h2>
+        <p>Todos os itens em aberto, com a regra aplicada. Exporte o CSV tratado se precisar.</p></div>
+      <div class="filterbar" id="fbBase"></div>
+      <div style="margin-bottom:14px"><button class="btn primary" onclick="exportCSV()"><i class="ti ti-download"></i> Baixar CSV tratado</button></div>
+      <div class="tablewrap"><table id="tblBase"></table></div>
+    </div>
+
+    <!-- CONFERÊNCIA DA BASE -->
+    <div class="page" id="pg-conferencia">
+      <div class="page-head"><h2><i class="ti ti-shield-check"></i> Conferência da base</h2>
+        <p>Verifica se cada filial do relatório tem auditor, regional, gerente e supervisor corretamente atribuídos na base.</p></div>
+      <div id="confBox"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ====================== MODAL E-MAIL ====================== -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <header>
+      <h3>Cobrança de entrega — <span class="fil" id="mFilial"></span></h3>
+      <button class="x" onclick="closeModal()">&times;</button>
+    </header>
+    <div class="body">
+      <div class="field">
+        <label>Destinatários</label>
+        <div class="recips" id="mRecips"></div>
+        <div class="note" id="mEmailNote" style="display:none"></div>
+      </div>
+      <div class="field"><label>Assunto</label><input type="text" id="mSubject"></div>
+      <div class="field"><label>Mensagem</label><textarea id="mBody"></textarea></div>
+    </div>
+    <footer>
+      <div style="flex:1;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px"><i class="ti ti-info-circle"></i> Gerar o e-mail/PDF ou copiar marca os itens desta filial como cobrados.</div>
+      <button class="btn ghost" onclick="gerarPDFFilial()"><i class="ti ti-file-type-pdf"></i> Gerar PDF da filial</button>
+      <button class="btn" onclick="copyMail()"><i class="ti ti-copy"></i> Copiar texto</button>
+      <button class="btn primary" onclick="openMail()"><i class="ti ti-mail"></i> Abrir no e-mail</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+</body>
+<script>
+
+/* ============================================================
+   BASE DE REGIONAIS (30 filiais) — embutida
+   ============================================================ */
+const BASE = {"MTZ":{"loja":"MATRIZ","estado":"GO","gerente":"REVALINO NETO","supervisor":"ERON LUIZ","regional":"SERGIO ADRIANO","auditor":"JOÃO VITOR"},"ARG":{"loja":"ARAGUAÍNA","estado":"TO","gerente":"FABIO AUGUSTO","supervisor":"MAGNO ALVES","regional":"LEANDRO CAMPOS","auditor":"CARLOS POGGIAN"},"RVD":{"loja":"RIO VERDE","estado":"GO","gerente":"WENDER PARTATA","supervisor":"NATANIELLE VARGAS","regional":"WENDER PARTATA","auditor":"JOÃO VITOR"},"UBR":{"loja":"UBERLÂNDIA","estado":"MG","gerente":"JOÃO CLÁUDIO","supervisor":"GISELE MARIA","regional":"NABIO BARROS","auditor":"JOÃO VITOR"},"MAR":{"loja":"MARABÁ","estado":"PA","gerente":"ENIO JOSAFE","supervisor":"LUCAS DAMACENO","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"},"JAT":{"loja":"JATAI","estado":"GO","gerente":"RENATO TEODORO","supervisor":"LUBIA SILVA","regional":"WENDER PARTATA","auditor":"JOÃO VITOR"},"CRI":{"loja":"CRISTALINA","estado":"GO","gerente":"ANDRE FERNANDO","supervisor":"MARCIA DE OLIVEIRA","regional":"NABIO BARROS","auditor":"JOÃO VITOR"},"FAG":{"loja":"UBS","estado":"GO","gerente":"EVANDRO MACEDO","supervisor":"KARINE GOMES","regional":"EVANDRO MACEDO","auditor":"FÁBIO"},"RED":{"loja":"REDENÇÃO","estado":"PA","gerente":"ANDERSON PEREIRA","supervisor":"BARBARA PEREIRA","regional":"LEANDRO CAMPOS","auditor":"CARLOS POGGIAN"},"IMP":{"loja":"IMPERATRIZ","estado":"MA","gerente":"IALE MILHOMEM","supervisor":"ROSIANE CANDIDO","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"},"BAR":{"loja":"BARRA DO GARÇAS","estado":"MT","gerente":"VINICIUS BRITO","supervisor":"KARINE SOARES","regional":"MATO GROSSO","auditor":"JOÃO VITOR"},"PAL":{"loja":"PALMAS","estado":"TO","gerente":"MARLON GERMANO","supervisor":"PATRICIA PEREIRA","regional":"LEANDRO CAMPOS","auditor":"CARLOS POGGIAN"},"MOZ":{"loja":"MOZARLÂNDIA","estado":"GO","gerente":"THIAGO VAZ","supervisor":"NÚBIA GASPAROTTI","regional":"SERGIO ADRIANO","auditor":"JOÃO VITOR"},"PGM":{"loja":"PARAGOMINAS","estado":"PA","gerente":"LORENA MOISES","supervisor":"ARTHUR  SILVA","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"},"SFX":{"loja":"SÃO FELIX DO XINGU","estado":"PA","gerente":"PEDRO MACIEL","supervisor":"LANNA  KEROLAYNE","regional":"LEANDRO CAMPOS","auditor":"CARLOS POGGIAN"},"FAP":{"loja":"FABRICA APARECIDA","estado":"GO","gerente":"ANNAPAULLA GARCIA","supervisor":"ANNAPAULLA GARCIA","regional":"ANNAPAULLA GARCIA","auditor":"JOÃO VITOR"},"FCB":{"loja":"CUIABÁ","estado":"MT","gerente":"GEOVANNY VIGILATO","supervisor":"JULIANA LIMA","regional":"MATO GROSSO","auditor":"FÁBIO"},"URU":{"loja":"URUAÇU","estado":"GO","gerente":"EDVANDO JOSE","supervisor":"NIVEA ALVES","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"MOR":{"loja":"MORRINHOS","estado":"GO","gerente":"ABEL HANUN","supervisor":"PAULA REGINA","regional":"NABIO BARROS","auditor":"JOÃO VITOR"},"CON":{"loja":"CONFRESA","estado":"MT","gerente":"AKYLLA OLIVEIRA","supervisor":"FELIPE ANDRADE","regional":"MATO GROSSO","auditor":"CARLOS POGGIAN"},"FOR":{"loja":"FORMOSA","estado":"GO","gerente":"DANIEL BARREIRA","supervisor":"JULIANA MARIA","regional":"NABIO BARROS","auditor":"FÁBIO"},"JUS":{"loja":"JUSSARA","estado":"GO","gerente":"CLESIO ALVES","supervisor":"MARIANNE SAHARA","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"XRA":{"loja":"XINGUARA","estado":"PA","gerente":"WILLIAN ANTIGO","supervisor":"LEONICE MORAIS","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"},"POR":{"loja":"PORANGATU","estado":"GO","gerente":"ANTONIO CARLOS","supervisor":"ALLYNE LUCENA","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"PLA":{"loja":"PONTES E LACERDA","estado":"MT","gerente":"MARCELO MULLER","supervisor":"RENATA COSTA","regional":"MATO GROSSO","auditor":"FÁBIO"},"GRA":{"loja":"GOIANIRA","estado":"GO","gerente":"HENISLEY SABINO","supervisor":"HENISLEY SABINO","regional":"HENISLEY SABINO","auditor":"FÁBIO"},"CAN":{"loja":"CANARANA","estado":"MT","gerente":"LEONARDO FREITAS","supervisor":"INGRID KAROLAYNE","regional":"MATO GROSSO","auditor":"JOÃO VITOR"},"GUR":{"loja":"GURUPI","estado":"TO","gerente":"FREDERICO CARRIJO","supervisor":"RENATA  CERQUEIRA","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"RIA":{"loja":"RIALMA","estado":"GO","gerente":"NATALINO NETO","supervisor":"ROSILDA CURSINO","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"ALT":{"loja":"ALTAMIRA","estado":"PA","gerente":"DAVID DOURADO","supervisor":"JOSIMARA CABRAL","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"}};
+
+/* E-mails fixos da diretoria (preencher quando tiver a lista).
+   Os papéis por loja (auditor/regional/gerente/supervisor) podem ser
+   mapeados aqui também; por ora ficam em branco e o painel mostra o NOME. */
+const EMAILS_DIRETORIA = {
+  "Aldo (Diretor Executivo)": "",
+  "Rafa Barsch (Proprietário)": "",
+  "Luciana Ramos (Gerente Adm.)": ""
+};
+const EMAILS_PESSOAS = {}; // ex: "JOÃO VITOR":"joao.vitor@agroquima.com.br"
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+let RECORDS = [];
+let dataRef = new Date();
+
+/* ---------- HISTÓRICO / JSONBin (mesma conta do painel de Vencidos) ---------- */
+const JSONBIN_BIN = "6a25aba8da38895dfe95c414";
+const JSONBIN_KEY = "$2a$10$NhmXfS0QZiXUxosdImwfGuw6SSpu/ofmat/2kSNj9YKW8I4beCIpq";
+const HIST_FIELD = "entregaFutura"; // namespace dentro do bin (separado dos Vencidos)
+let HIST = { semanas: [], ultimoDetalhe: null }; // semanas=agregados leves; ultimoDetalhe=snapshot p/ comparar
+let COMP = null; // resultado da comparação com a semana anterior
+
+/* ---------- REGISTRO DE COBRANÇAS (auditoria do que já foi cobrado) ---------- */
+// mapa: chave do item -> { d: "AAAA-MM-DD" (1ª cobrança), u: "AAAA-MM-DD" (última), n: nº de vezes, obs: "" }
+let COBR = {};
+let DIAS_REINCIDENCIA = 10; // cobrado há mais que isso e ainda parado => reincidente
+// preenchido a cada importação: chave -> status de auditoria
+let AUDIT = {};
+
+/* identidade estável de um item entre semanas: pedido + desdobramento + produto */
+const itemKey = r => `${r.pedido}|${r.desdobr}|${r.codProd}`;
+
+/* snapshot detalhado: chave -> {saldo, dados mínimos p/ exibir o que foi entregue} */
+function snapshotDetalhe(recs){
+  const d = {};
+  recs.forEach(r => { d[itemKey(r)] = {s:r.saldo, c:r.cliente, p:r.produto, f:r.sigla, ped:r.pedido, vu:r.vlrUnit}; });
+  return d;
+}
+/* agregado leve por filial (cabe ~1 ano no JSONBin) */
+function snapshotAgregado(recs){
+  const a = {};
+  recs.forEach(r => {
+    (a[r.sigla] = a[r.sigla] || {n:0,ent:0,ret:0,atr:0});
+    a[r.sigla].n++; a[r.sigla].ent+=r.valorEntregar; a[r.sigla].ret+=r.valorRetido;
+    if(r.atrasado) a[r.sigla].atr++;
+  });
+  return {
+    data: dataRef.toISOString().slice(0,10),
+    itens: recs.length,
+    atrasados: recs.filter(r=>r.atrasado).length,
+    vEntregar: +recs.reduce((s,r)=>s+r.valorEntregar,0).toFixed(2),
+    vRetido: +recs.reduce((s,r)=>s+r.valorRetido,0).toFixed(2),
+    porFilial: a
+  };
+}
+
+const fmtBRL = v => "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtINT = v => (v||0).toLocaleString("pt-BR");
+const fmtDATE = d => d ? d.toLocaleDateString("pt-BR") : "—";
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ============================================================
+   PARSERS (padrão BR/US, datas, números)
+   ============================================================ */
+function parseNum(v){
+  if(v==null||v==="") return 0;
+  if(typeof v==="number") return v;
+  let s=String(v).trim().replace(/R\$/g,"").replace(/\s/g,"");
+  if(s.indexOf(",")>-1 && s.indexOf(".")>-1) s=s.replace(/\./g,"").replace(",",".");
+  else if(s.indexOf(",")>-1) s=s.replace(",",".");
+  const n=parseFloat(s); return isNaN(n)?0:n;
+}
+function parseDate(v){
+  if(v==null||v==="") return null;
+  if(v instanceof Date) return v;
+  if(typeof v==="number"){ // serial Excel
+    const d=new Date(Math.round((v-25569)*86400*1000)); return isNaN(d)?null:d;
+  }
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);    if(m) return new Date(+m[3],+m[2]-1,+m[1]);
+  const d=new Date(s); return isNaN(d)?null:d;
+}
+
+/* mapeamento de cabeçalho por nome (robusto) */
+const HEADER_MAP=[
+  ["dias_pend",["dias pendentes"]],["limite",["dias (limite","limite x lin"]],
+  ["filial_nf",["filial nf"]],["filial_ped",["filial ped"]],
+  ["pedido",["n° pedido","nº pedido","no pedido","n pedido","pedido"]],["desdobr",["desd"]],["emissao",["emissão nf","emissao nf"]],
+  ["cod_cli",["cliente"]],["nome_cli",["nome cliente"]],["cidade",["cidade"]],
+  ["cod_vend",["vendedor"]],["nome_vend",["nome vendedor"]],
+  ["cod_prod",["produto"]],["desc_prod",["descrição produto","descricao produto"]],
+  ["saldo",["saldo"]],["peso_unit",["peso unit"]],["vlr_unit",["valor unitário","valor unitario"]],
+  ["peso_total",["peso total"]],["tipo_entr",["tipo entrega"]],["vlr_frete",["valor frete"]],
+  ["linha",["linha"]],["sublinha",["sublinha"]],
+  ["qtd_vnd",["qtde vnd"]],["qtd_entr",["qtde entr"]],["qtd_dev",["qtde dev"]],
+  ["fornecedor",["fornecedor"]],["vlr_titulo",["vlr saldo (titulo","vlr saldo (título"]]
+];
+function mapHeader(hrow){
+  const low=hrow.map(c=>String(c==null?"":c).trim().toLowerCase());
+  const pos={}, used=new Set();
+  const exactOnly=new Set(["filial_nf","filial_ped","cod_cli","cod_prod","saldo","linha","pedido"]);
+  for(const [key,alvos] of HEADER_MAP){
+    let found=-1;
+    for(const alvo of alvos){
+      for(let i=0;i<low.length;i++){
+        if(used.has(i)) continue;
+        if(low[i].startsWith(alvo) || (!exactOnly.has(key) && low[i].indexOf(alvo)>-1)){found=i;break;}
+      }
+      if(found>-1) break;
+    }
+    if(found>-1){pos[key]=found;used.add(found);}
+  }
+  // sigla do pedido = coluna logo após "Filial Ped"
+  let sigPed=-1;
+  if(pos.filial_ped!=null){
+    const c=pos.filial_ped+1;
+    if(c<low.length && low[c].startsWith("sigla")) sigPed=c;
+  }
+  if(sigPed<0){
+    const sig=[];low.forEach((c,i)=>{if(c.startsWith("sigla"))sig.push(i)});
+    sigPed = sig.length>1?sig[1]:(sig[0]??-1);
+  }
+  pos._sigPed=sigPed;
+  return pos;
+}
+
+/* ============================================================
+   MOTOR DE REGRAS  (idêntico ao Python)
+   ============================================================ */
+function processRows(rows){
+  if(!rows.length) return [];
+  const pos=mapHeader(rows[0]);
+  const out=[];
+  let maxEmissao=null;
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r];
+    if(!row || !row.some(x=>String(x==null?"":x).trim())) continue;
+    const g=k=>{const i=pos[k];return (i!=null&&i>-1&&i<row.length)?row[i]:null;};
+    const saldo=Math.round(parseNum(g("saldo")));
+    if(saldo<=0) continue;
+    const vlrUnit=parseNum(g("vlr_unit"));
+    const devido=parseNum(g("vlr_titulo"));
+    const dias=Math.round(parseNum(g("dias_pend")));
+    const limite=Math.round(parseNum(g("limite")))||90;
+    let sigla=(pos._sigPed>-1?String(row[pos._sigPed]||"") : String(g("filial_ped")||"")).trim().toUpperCase();
+
+    const valorParado=+(saldo*vlrUnit).toFixed(2);
+    const valorPago=+Math.max(valorParado-devido,0).toFixed(2);
+    let qtdEntregar = vlrUnit<=0 ? 0 : Math.floor(valorPago/vlrUnit + 1e-6);
+    qtdEntregar=Math.max(0,Math.min(qtdEntregar,saldo));
+    const qtdRetida=saldo-qtdEntregar;
+    const valorEntregar=+(qtdEntregar*vlrUnit).toFixed(2);
+    const valorRetido=+(qtdRetida*vlrUnit).toFixed(2);
+    const atrasado=dias>=limite;
+
+    let status;
+    if(qtdEntregar>=saldo && qtdEntregar>0) status="total";
+    else if(qtdEntregar>0) status="parc";
+    else status="ret";
+
+    const b=BASE[sigla]||{};
+    const emissao=parseDate(g("emissao"));
+    if(emissao && (!maxEmissao||emissao>maxEmissao)) maxEmissao=emissao;
+
+    out.push({
+      sigla, filial:b.loja||String(g("filial_ped")||""), estado:b.estado||"",
+      auditor:b.auditor||"", regional:b.regional||"", gerente:b.gerente||"", supervisor:b.supervisor||"",
+      pedido:String(g("pedido")||""), desdobr:String(g("desdobr")||""), emissao,
+      codCli:String(g("cod_cli")||""), cliente:String(g("nome_cli")||"").trim(),
+      cidade:String(g("cidade")||"").trim(), vendedor:String(g("nome_vend")||"").trim(),
+      codProd:String(g("cod_prod")||""), produto:String(g("desc_prod")||"").trim(),
+      linha:String(g("linha")||"").trim(), sublinha:String(g("sublinha")||"").trim(),
+      fornecedor:String(g("fornecedor")||"").trim(),
+      dias, limite, atrasado,
+      qtdVnd:Math.round(parseNum(g("qtd_vnd"))), qtdEntr:Math.round(parseNum(g("qtd_entr"))),
+      qtdDev:Math.round(parseNum(g("qtd_dev"))), saldo, vlrUnit,
+      valorParado, devido, valorPago, qtdEntregar, valorEntregar, qtdRetida, valorRetido,
+      status, tipoEntr:String(g("tipo_entr")||"").trim()
+    });
+  }
+  if(maxEmissao) dataRef=maxEmissao;
+  return out;
+}
+
+const STAT_LABEL={total:"Cobrar total",parc:"Cobrar parcial",ret:"Retido"};
+function pill(s){return `<span class="pill ${s}">${STAT_LABEL[s]}</span>`;}
+
+/* ============================================================
+   HISTÓRICO: carregar / salvar (JSONBin) + comparação
+   ============================================================ */
+async function histLoad(){
+  try{
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`, {
+      headers: {"X-Master-Key": JSONBIN_KEY, "X-Bin-Meta": "false"}
+    });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data = await res.json();
+    const node = (data && data[HIST_FIELD]) ? data[HIST_FIELD] : null;
+    if(node){
+      HIST.semanas = Array.isArray(node.semanas) ? node.semanas : [];
+      HIST.ultimoDetalhe = node.ultimoDetalhe || null;
+      COBR = node.cobrancas || {};
+      if(typeof node.diasReincidencia === "number") DIAS_REINCIDENCIA = node.diasReincidencia;
+    }
+    return true;
+  }catch(e){ console.warn("histLoad:", e.message); return false; }
+}
+
+async function histSave(){
+  try{
+    // ler o bin inteiro p/ não apagar o namespace dos Vencidos
+    let full = {};
+    try{
+      const r = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`, {
+        headers:{"X-Master-Key":JSONBIN_KEY,"X-Bin-Meta":"false"}});
+      if(r.ok) full = await r.json() || {};
+    }catch(_){}
+    full[HIST_FIELD] = { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA };
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}`, {
+      method:"PUT",
+      headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_KEY},
+      body: JSON.stringify(full)
+    });
+    return res.ok;
+  }catch(e){ console.warn("histSave:", e.message); return false; }
+}
+
+/* registra a importação atual e roda a comparação com a anterior */
+async function registrarImportacao(){
+  await histLoad();
+  const hoje = dataRef.toISOString().slice(0,10);
+  const detAtual = snapshotDetalhe(RECORDS);
+
+  // comparar com o detalhe anterior (se existir e for de outra data)
+  const ant = HIST.ultimoDetalhe;
+  if(ant && ant.data && ant.data !== hoje && ant.itens){
+    COMP = compararSnapshots(ant.itens, detAtual, ant.data);
+  }else{
+    COMP = null;
+  }
+
+  // upsert do agregado da semana (substitui se mesma data)
+  const agg = snapshotAgregado(RECORDS);
+  HIST.semanas = HIST.semanas.filter(s => s.data !== hoje);
+  HIST.semanas.push(agg);
+  HIST.semanas.sort((a,b)=> a.data<b.data?-1:1);
+  if(HIST.semanas.length > 60) HIST.semanas = HIST.semanas.slice(-60);
+
+  // guarda o detalhe atual como "último" para a próxima comparação
+  HIST.ultimoDetalhe = { data: hoje, itens: detAtual };
+
+  const ok = await histSave();
+  // o COBR já foi carregado no histLoad — recalcula status e atualiza as telas
+  calcularAuditoria();
+  renderResumo(); renderCobrar(); renderRetidos(); renderBase(); renderRecor();
+  renderGrupo("tblFiliais","filial",["sigla","auditor","regional"]);
+  renderAuditoria();
+  renderEvolucao(ok);
+}
+
+function compararSnapshots(antItens, atualDet, dataAnt){
+  const A = new Set(Object.keys(antItens));
+  const B = new Set(Object.keys(atualDet));
+  const entreguesTotal = [], parciais = [], novos = [];
+  // entregue total: estava antes, sumiu agora
+  A.forEach(k=>{ if(!B.has(k)){ const o=antItens[k]; entreguesTotal.push({k,...o,entregue:o.s}); }});
+  // parcial: continua, mas saldo caiu
+  A.forEach(k=>{
+    if(B.has(k)){
+      const a=antItens[k], b=atualDet[k];
+      if(b.s < a.s) parciais.push({k, c:a.c, p:a.p, f:a.f, ped:a.ped, de:a.s, para:b.s, entregue:a.s-b.s, vu:a.vu});
+    }
+  });
+  // novo: não estava antes
+  B.forEach(k=>{ if(!A.has(k)){ const o=atualDet[k]; novos.push({k,...o}); }});
+  return { dataAnt, entreguesTotal, parciais, novos,
+    qtdEntTotal: entreguesTotal.length, qtdParc: parciais.length, qtdNovos: novos.length };
+}
+
+/* ============================================================
+   AUDITORIA DE COBRANÇA — o que já foi cobrado x o que não foi
+   ============================================================ */
+// diferença em dias entre hoje (dataRef) e uma data "AAAA-MM-DD"
+function diasDesde(iso){
+  if(!iso) return null;
+  const d=new Date(iso+"T00:00:00");
+  return Math.floor((dataRef - d)/86400000);
+}
+// status de auditoria de cada item em aberto, cruzando COBR (registro) com o relatório atual
+function calcularAuditoria(){
+  AUDIT = {};
+  RECORDS.forEach(r=>{
+    const k=itemKey(r);
+    const c=COBR[k];
+    if(!c){
+      r.audit={st:"nao", dias:null, vezes:0, dataCobr:null};
+    }else{
+      const dd=diasDesde(c.u||c.d);
+      const st = dd!=null && dd>DIAS_REINCIDENCIA ? "reincidente" : "aguardando";
+      r.audit={st, dias:dd, vezes:c.n||1, dataCobr:c.u||c.d, primeira:c.d, obs:c.obs||""};
+    }
+    AUDIT[k]=r.audit;
+  });
+  // marca COBR de itens que já saíram do relatório (entregues) — para o histórico saber que fecharam
+  // (não apaga; serve de prova de "cobrei e foi entregue")
+}
+// quantos itens cobráveis ainda não foram cobrados / aguardando / reincidentes
+function resumoAuditoria(rows){
+  rows = rows || RECORDS;
+  const cobr = rows.filter(r=>r.status!=="ret"); // só o que é cobrável
+  return {
+    naoCobrado: cobr.filter(r=>r.audit.st==="nao").length,
+    aguardando: cobr.filter(r=>r.audit.st==="aguardando").length,
+    reincidente: cobr.filter(r=>r.audit.st==="reincidente").length,
+    vNaoCobrado: cobr.filter(r=>r.audit.st==="nao").reduce((s,r)=>s+r.valorEntregar,0),
+    vReincidente: cobr.filter(r=>r.audit.st==="reincidente").reduce((s,r)=>s+r.valorEntregar,0),
+  };
+}
+// marca 1 item como cobrado hoje (idempotente: incrementa contador, atualiza última data)
+function marcarItem(k, silencioso){
+  const hoje=dataRef.toISOString().slice(0,10);
+  const c=COBR[k];
+  if(c){ c.u=hoje; c.n=(c.n||1)+1; }
+  else { COBR[k]={d:hoje,u:hoje,n:1,obs:""}; }
+  if(!silencioso){ calcularAuditoria(); persistirCobranca(); refreshAll(); toast("Item marcado como cobrado."); }
+}
+function desmarcarItem(k){
+  delete COBR[k];
+  calcularAuditoria(); persistirCobranca(); refreshAll();
+  toast("Marca de cobrança removida.");
+}
+// marca todos os itens cobráveis de uma filial (usado ao gerar e-mail/PDF)
+function marcarFilial(sigla, silencioso){
+  const hoje=dataRef.toISOString().slice(0,10);
+  let n=0;
+  RECORDS.filter(r=>r.sigla===sigla && r.status!=="ret").forEach(r=>{
+    const k=itemKey(r), c=COBR[k];
+    if(c){ c.u=hoje; c.n=(c.n||1)+1; } else { COBR[k]={d:hoje,u:hoje,n:1,obs:""}; }
+    n++;
+  });
+  calcularAuditoria();
+  if(!silencioso){ persistirCobranca(); refreshAll(); toast(`${n} itens da filial ${sigla} marcados como cobrados.`); }
+  return n;
+}
+async function persistirCobranca(){
+  const ok=await histSave();
+  const el=document.getElementById("cobrStatus");
+  if(el) el.innerHTML = ok
+    ? `<i class="ti ti-cloud-check"></i> Registro de cobranças sincronizado na nuvem.`
+    : `<i class="ti ti-cloud-x"></i> Não consegui gravar agora; tentará na próxima ação.`;
+}
+// re-render de tudo que depende do status de cobrança
+function refreshAll(){
+  renderResumo(); renderCobrar(); renderRetidos(); renderBase();
+  renderAuditoria(); renderRecor();
+  renderGrupo("tblFiliais","filial",["sigla","auditor","regional"]);
+}
+
+
+/* ============================================================
+   FORMATADORES + HELPERS DE UI
+   ============================================================ */
+function kpi(cls,lab,icon,val,foot){
+  return `<div class="card kpi ${cls}"><div class="lab">${icon?`<i class="ti ti-${icon}"></i>`:''}${lab}</div>
+    <div class="val">${val}</div>${foot?`<div class="foot">${foot}</div>`:''}</div>`;
+}
+const pct=(a,b)=>b?((a/b*100).toFixed(0)+"%"):"0%";
+function filialCell(r){return `<span class="filial-cell"><span class="sg">${r.sigla}</span> <span class="nm">${esc(r.filial)}</span></span>`;}
+
+/* ============================================================
+   CARREGAMENTO DE ARQUIVO
+   ============================================================ */
+const dz=document.getElementById("dz"),fileInput=document.getElementById("file");
+dz.onclick=()=>fileInput.click();
+fileInput.onchange=e=>{if(e.target.files[0])handleFile(e.target.files[0]);};
+["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+dz.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+
+function handleFile(file){
+  const rd=new FileReader();
+  rd.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array",cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+      RECORDS=processRows(rows);
+      if(!RECORDS.length){toast("Nenhum item com saldo encontrado no arquivo.");return;}
+      document.getElementById("metaFile").textContent=file.name;
+      bootApp();
+    }catch(err){console.error(err);toast("Erro ao ler o arquivo: "+err.message);}
+  };
+  rd.readAsArrayBuffer(file);
+}
+function resetApp(){
+  RECORDS=[];fileInput.value="";COMP=null;
+  document.getElementById("app").classList.remove("on");
+  document.getElementById("intro").style.display="";
+  document.getElementById("meta").style.display="none";
+  document.getElementById("btnReload").style.display="none";
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+function bootApp(){
+  document.getElementById("intro").style.display="none";
+  document.getElementById("app").classList.add("on");
+  document.getElementById("meta").style.display="";
+  document.getElementById("btnReload").style.display="";
+  document.getElementById("metaData").textContent="Posição: "+fmtDATE(dataRef);
+  sortState={};
+  // status de auditoria default (atualizado quando o COBR carrega da nuvem)
+  RECORDS.forEach(r=>r.audit={st:"nao",dias:null,vezes:0,dataCobr:null});
+  renderResumo();
+  renderInsights();
+  buildFilters();
+  renderCobrar(); renderRetidos(); renderBase();
+  renderGrupo("tblFiliais","filial",["sigla","auditor","regional"]);
+  renderGrupo("tblAuditores","auditor",[]);
+  renderGrupo("tblRegionais","regional",[]);
+  renderRecor();
+  renderConferencia();
+  renderAuditoria();
+  renderEvolucao(null,true);
+  registrarImportacao();
+}
+
+/* nav */
+document.querySelectorAll(".nav-item").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".page").forEach(x=>x.classList.remove("on"));
+  t.classList.add("on");
+  document.getElementById("pg-"+t.dataset.pg).classList.add("on");
+  document.querySelector(".main").scrollTop=0;
+});
+
+/* ============================================================
+   RENDER: RESUMO
+   ============================================================ */
+function renderResumo(){
+  const tot=RECORDS.length, atr=RECORDS.filter(r=>r.atrasado).length;
+  const ct=RECORDS.filter(r=>r.status==="total"), cp=RECORDS.filter(r=>r.status==="parc"), rt=RECORDS.filter(r=>r.status==="ret");
+  const vEnt=RECORDS.reduce((s,r)=>s+r.valorEntregar,0), vRet=RECORDS.reduce((s,r)=>s+r.valorRetido,0);
+  const vParado=RECORDS.reduce((s,r)=>s+r.valorParado,0);
+  document.getElementById("badgeCobrar").textContent=ct.length+cp.length;
+  document.getElementById("cardsResumo").innerHTML=
+    kpi("b","Itens em aberto","package",fmtINT(tot),`em ${new Set(RECORDS.map(r=>r.sigla)).size} filiais`)+
+    kpi("r","Itens atrasados","alarm",fmtINT(atr),pct(atr,tot)+" do total · ≥ limite da linha")+
+    kpi("","Valor total parado","businessplan",fmtBRL(vParado),"produto vendido e não retirado")+
+    kpi("g","A liberar (já pago)","cash",fmtBRL(vEnt),`${fmtINT(ct.length+cp.length)} itens cobráveis`)+
+    kpi("r","Retido (cliente deve)","lock",fmtBRL(vRet),`${fmtINT(rt.length)} itens presos`);
+
+  const byLine={};
+  RECORDS.forEach(r=>{const k=r.linha||"(sem linha)";(byLine[k]=byLine[k]||{n:0,atr:0,ent:0,ret:0});
+    byLine[k].n++;if(r.atrasado)byLine[k].atr++;byLine[k].ent+=r.valorEntregar;byLine[k].ret+=r.valorRetido;});
+  const lines=Object.entries(byLine).sort((a,b)=>b[1].ret-a[1].ret);
+  let h=`<thead><tr><th>Linha de produto</th><th class="num">Itens</th><th class="num">Atrasados</th>
+    <th class="money">A entregar</th><th class="money">Retido</th></tr></thead><tbody>`;
+  lines.forEach(([k,v])=>{
+    h+=`<tr><td class="strong">${esc(k)}</td><td class="num">${fmtINT(v.n)}</td>
+      <td class="num" style="color:${v.atr?'var(--red)':'var(--text3)'}">${fmtINT(v.atr)}</td>
+      <td class="money" style="color:var(--green-dk)">${fmtBRL(v.ent)}</td>
+      <td class="money" style="color:var(--red-dk)">${fmtBRL(v.ret)}</td></tr>`;
+  });
+  document.getElementById("tblLinha").innerHTML=h+"</tbody>";
+}
+
+/* ============================================================
+   FILTROS (com botão Limpar em todas as abas)
+   ============================================================ */
+function uniq(key){return [...new Set(RECORDS.map(r=>r[key]).filter(Boolean))].sort();}
+function buildFilters(){
+  const filiais=uniq("sigla"), auditores=uniq("auditor"), regionais=uniq("regional"), linhas=uniq("linha");
+  const filialOpts=filiais.map(s=>`<option value="${s}">${s} — ${esc((BASE[s]||{}).loja||s)}</option>`).join("");
+  function bar(id){
+    document.getElementById(id).innerHTML=`
+      <div class="grp"><label>Buscar</label><input type="text" data-f="busca" placeholder="cliente, produto, pedido, cidade…"></div>
+      <div class="grp"><label>Filial</label><select data-f="sigla"><option value="">Todas</option>${filialOpts}</select></div>
+      <div class="grp"><label>Auditor</label><select data-f="auditor"><option value="">Todos</option>${auditores.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
+      <div class="grp"><label>Regional</label><select data-f="regional"><option value="">Todos</option>${regionais.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
+      <div class="grp"><label>Linha</label><select data-f="linha"><option value="">Todas</option>${linhas.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
+      <button class="chip" data-f="soatr"><i class="ti ti-alarm"></i> Só atrasados</button>
+      <div class="spacer"></div>
+      <button class="btn-clear" data-clear="1"><i class="ti ti-filter-off"></i> Limpar filtros</button>`;
+    wireFilter(id);
+  }
+  bar("fbCobrar"); bar("fbRetidos"); bar("fbBase");
+  // recorrência
+  document.getElementById("fbRecor").innerHTML=`
+    <div class="grp"><label>Buscar cliente</label><input type="text" data-f="busca" placeholder="nome do cliente…"></div>
+    <div class="grp"><label>Filial</label><select data-f="sigla"><option value="">Todas</option>${filialOpts}</select></div>
+    <button class="chip" data-f="so2"><i class="ti ti-stack-2"></i> 2+ itens</button>
+    <button class="chip" data-f="soret"><i class="ti ti-lock"></i> Com retido</button>
+    <div class="spacer"></div>
+    <button class="btn-clear" data-clear="1"><i class="ti ti-filter-off"></i> Limpar filtros</button>`;
+  wireFilter("fbRecor", renderRecor);
+}
+function wireFilter(id, custom){
+  const box=document.getElementById(id);
+  const cb = custom || rerender;
+  box.querySelectorAll("[data-f]").forEach(el=>{
+    if(el.classList.contains("chip")) el.onclick=()=>{el.classList.toggle("on");cb();};
+    else el.oninput=el.onchange=cb;
+  });
+  const clr=box.querySelector("[data-clear]");
+  if(clr) clr.onclick=()=>{
+    box.querySelectorAll("input").forEach(i=>i.value="");
+    box.querySelectorAll("select").forEach(s=>s.value="");
+    box.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+    cb();
+  };
+}
+function readFilter(id){
+  const box=document.getElementById(id),f={};
+  box.querySelectorAll("[data-f]").forEach(el=>{
+    if(el.classList.contains("chip")) f[el.dataset.f]=el.classList.contains("on");
+    else f[el.dataset.f]=el.value.trim();
+  });
+  return f;
+}
+function applyFilter(rows,f){
+  return rows.filter(r=>{
+    if(f.sigla && r.sigla!==f.sigla) return false;
+    if(f.auditor && r.auditor!==f.auditor) return false;
+    if(f.regional && r.regional!==f.regional) return false;
+    if(f.linha && r.linha!==f.linha) return false;
+    if(f.soatr && !r.atrasado) return false;
+    if(f.busca){const q=f.busca.toLowerCase();
+      if(!(`${r.cliente} ${r.produto} ${r.pedido} ${r.cidade} ${r.vendedor} ${r.codProd}`).toLowerCase().includes(q)) return false;}
+    return true;
+  });
+}
+function rerender(){renderCobrar();renderRetidos();renderBase();}
+
+/* ============================================================
+   TABELA DE DETALHE — botão Cobrar na 1ª coluna, filial com nome, tudo classificável
+   ============================================================ */
+let sortState={};
+function detailTable(tblId,rows){
+  const cols=[
+    {k:"_mail",t:"",sort:false,render:r=>`<button class="btn-cobrar" onclick='openMailFor("${r.sigla}")'><i class="ti ti-mail"></i> Cobrar</button>`},
+    {k:"_audit",t:"Cobrança",sort:false,render:r=>`${markButton(r)}${r.audit&&r.audit.st!=="nao"?`<div class="cobr-info">${r.audit.st==="reincidente"?'<b style="color:var(--red)">reincidente</b>':'aguardando'} · ${r.audit.dias}d</div>`:''}`},
+    {k:"status",t:"Status",render:r=>pill(r.status)},
+    {k:"atrasado",t:"Atraso",render:r=>r.atrasado?`<span class="tag-atr">${r.dias}d</span>`:`<span class="tag-ok">${r.dias}d</span>`},
+    {k:"sigla",t:"Filial",render:r=>filialCell(r)},
+    {k:"auditor",t:"Auditor",render:r=>esc(r.auditor)},
+    {k:"cliente",t:"Cliente",render:r=>esc(r.cliente)},
+    {k:"produto",t:"Produto",render:r=>`${esc(r.produto)}<br><span class="muted" style="font-size:11px">${esc(r.linha)}</span>`},
+    {k:"pedido",t:"Pedido",render:r=>`<span class="muted">${r.pedido}</span>`},
+    {k:"emissao",t:"Emissão",num:true,render:r=>`<span class="muted">${fmtDATE(r.emissao)}</span>`},
+    {k:"saldo",t:"Saldo",num:true,render:r=>fmtINT(r.saldo)},
+    {k:"valorParado",t:"Vlr parado",money:true,render:r=>fmtBRL(r.valorParado)},
+    {k:"devido",t:"Título devido",money:true,render:r=>r.devido?`<span style="color:var(--red)">${fmtBRL(r.devido)}</span>`:`<span class="muted">—</span>`},
+    {k:"qtdEntregar",t:"Qtd entregar",num:true,render:r=>r.qtdEntregar?`<span style="color:var(--green-dk);font-weight:700">${fmtINT(r.qtdEntregar)}</span>`:`<span class="muted">0</span>`},
+    {k:"valorEntregar",t:"Vlr entregar",money:true,render:r=>r.valorEntregar?`<span style="color:var(--green-dk)">${fmtBRL(r.valorEntregar)}</span>`:`<span class="muted">—</span>`},
+    {k:"valorRetido",t:"Vlr retido",money:true,render:r=>r.valorRetido?`<span style="color:var(--red-dk)">${fmtBRL(r.valorRetido)}</span>`:`<span class="muted">—</span>`},
+  ];
+  const st=sortState[tblId];
+  if(st){
+    rows=rows.slice().sort((a,b)=>{
+      let x=a[st.k],y=b[st.k];
+      if(x instanceof Date)x=x?x.getTime():0; if(y instanceof Date)y=y?y.getTime():0;
+      if(typeof x==="string"){x=x.toLowerCase();y=(y||"").toLowerCase();}
+      if(x<y)return st.dir; if(x>y)return -st.dir; return 0;
+    });
+  }
+  let h="<thead><tr>";
+  cols.forEach(c=>{
+    const ar=st&&st.k===c.k?(st.dir>0?'<i class="ti ti-caret-up-filled ar"></i>':'<i class="ti ti-caret-down-filled ar"></i>'):"";
+    const cls=(c.num||c.money?'num ':'')+(c.sort===false?'':'sortable');
+    h+=`<th class="${cls}" ${c.sort===false?'':`onclick="doSort('${tblId}','${c.k}')"`}>${c.t}${ar}</th>`;
+  });
+  h+="</tr></thead><tbody>";
+  if(!rows.length){h+=`<tr><td colspan="${cols.length}"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhum item para os filtros atuais.</div></td></tr>`;}
+  else rows.forEach(r=>{h+="<tr>";cols.forEach(c=>{h+=`<td class="${c.num?'num':c.money?'money':''}">${c.render(r)}</td>`;});h+="</tr>";});
+  document.getElementById(tblId).innerHTML=h+"</tbody>";
+}
+function doSort(tblId,k){const s=sortState[tblId];sortState[tblId]=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};rerender();}
+
+function renderCobrar(){
+  const f=readFilter("fbCobrar");
+  let rows=applyFilter(RECORDS.filter(r=>r.status!=="ret"),f);
+  if(!sortState.tblCobrar) sortState.tblCobrar={k:"valorEntregar",dir:-1};
+  const ct=rows.filter(r=>r.status==="total"),cp=rows.filter(r=>r.status==="parc");
+  document.getElementById("cardsCobrar").innerHTML=
+    kpi("b","Itens a cobrar","cash",fmtINT(rows.length),`${ct.length} total + ${cp.length} parcial`)+
+    kpi("g","Valor a liberar","businessplan",fmtBRL(rows.reduce((s,r)=>s+r.valorEntregar,0)),"já pago — force a entrega")+
+    kpi("r","Atrasados na lista","alarm",fmtINT(rows.filter(r=>r.atrasado).length),"prioridade máxima");
+  detailTable("tblCobrar",rows);
+}
+function renderRetidos(){
+  const f=readFilter("fbRetidos");
+  let rows=applyFilter(RECORDS.filter(r=>r.status==="ret"),f);
+  if(!sortState.tblRetidos) sortState.tblRetidos={k:"valorRetido",dir:-1};
+  detailTable("tblRetidos",rows);
+}
+function renderBase(){
+  const f=readFilter("fbBase");
+  let rows=applyFilter(RECORDS,f);
+  if(!sortState.tblBase) sortState.tblBase={k:"valorParado",dir:-1};
+  detailTable("tblBase",rows);
+}
+
+/* ============================================================
+   TABELAS AGRUPADAS — classificáveis
+   ============================================================ */
+function renderGrupo(tblId,key,extra){
+  extra=extra||[];
+  // na aba "Por Filial" a sigla já vai junto ao nome → não repetir como coluna
+  const extraCols = key==="filial" ? extra.filter(e=>e!=="sigla") : extra;
+  const grp={};
+  RECORDS.forEach(r=>{const k=r[key]||"(vazio)";(grp[k]=grp[k]||{n:0,atr:0,cob:0,ent:0,ret:0,extra:{}});
+    grp[k].n++;if(r.atrasado)grp[k].atr++;if(r.status!=="ret")grp[k].cob++;
+    grp[k].ent+=r.valorEntregar;grp[k].ret+=r.valorRetido;
+    extra.forEach(e=>grp[k].extra[e]=r[e]);});
+  let rows=Object.entries(grp).map(([k,v])=>({key:k,...v,tot:v.ent+v.ret,pr:(v.ent+v.ret)?v.ret/(v.ent+v.ret):0}));
+  const st=sortState[tblId]||{k:"ret",dir:-1};
+  rows.sort((a,b)=>{let x=a[st.k],y=b[st.k];if(typeof x==="string"){x=x.toLowerCase();y=(""+y).toLowerCase();}return x<y?st.dir:x>y?-st.dir:0;});
+  const maxRet=Math.max(...rows.map(r=>r.ret),1);
+  const extraLabels={sigla:"Sigla",auditor:"Auditor",regional:"Regional"};
+  const keyLabel={filial:"Filial",auditor:"Auditor",regional:"Regional"}[key];
+  const colDefs=[{k:"key",t:keyLabel},...extraCols.map(e=>({k:"x_"+e,t:extraLabels[e]||e,sort:false})),
+    {k:"n",t:"Itens",num:true},{k:"atr",t:"Atrasados",num:true},{k:"cob",t:"A cobrar",num:true},
+    {k:"ent",t:"A entregar",money:true},{k:"ret",t:"Retido",money:true},{k:"pr",t:"% retido",sort:true}];
+  const extraJson=JSON.stringify(extra).replace(/"/g,'&quot;');
+  let h=`<thead><tr><th>#</th>`;
+  colDefs.forEach(c=>{
+    const ar=st.k===c.k?(st.dir>0?'<i class="ti ti-caret-up-filled ar"></i>':'<i class="ti ti-caret-down-filled ar"></i>'):"";
+    const cls=(c.num||c.money?'num ':'')+(c.sort===false?'':'sortable');
+    h+=`<th class="${cls}" ${c.sort===false?'':`onclick="doSortGrp('${tblId}','${key}',&quot;${extraJson}&quot;,'${c.k}')"`}>${c.t}${ar}</th>`;
+  });
+  h+=`</tr></thead><tbody>`;
+  rows.forEach((v,i)=>{
+    h+=`<tr><td><span class="rank ${i===0?'top':''}">${i+1}</span></td>`;
+    if(key==="filial") h+=`<td><span class="sg" style="color:var(--brand)">${esc(v.extra.sigla||"")}</span> <span class="strong">${esc(v.key)}</span></td>`;
+    else h+=`<td class="strong">${esc(v.key)}</td>`;
+    extraCols.forEach(e=>h+=`<td class="muted">${esc(v.extra[e]||"")}</td>`);
+    h+=`<td class="num">${fmtINT(v.n)}</td>
+      <td class="num" style="color:${v.atr?'var(--red)':'var(--text3)'}">${fmtINT(v.atr)}</td>
+      <td class="num" style="color:var(--green-dk)">${fmtINT(v.cob)}</td>
+      <td class="money" style="color:var(--green-dk)">${fmtBRL(v.ent)}</td>
+      <td class="money" style="color:var(--red-dk)">${fmtBRL(v.ret)}</td>
+      <td><span class="bar"><i style="width:${(v.ret/maxRet*100).toFixed(0)}%"></i></span>${(v.pr*100).toFixed(0)}%</td></tr>`;
+  });
+  document.getElementById(tblId).innerHTML=h+"</tbody>";
+}
+function doSortGrp(tblId,key,extraJson,col){
+  const extra=JSON.parse(extraJson);
+  const s=sortState[tblId];sortState[tblId]=(s&&s.k===col)?{k:col,dir:-s.dir}:{k:col,dir:1};
+  renderGrupo(tblId,key,extra);
+}
+
+/* ============================================================
+   RECORRÊNCIA — linhas expansíveis (clique mostra os pedidos)
+   ============================================================ */
+let recorOpen={};
+function renderRecor(){
+  const f=readFilter("fbRecor");
+  const grp={};
+  RECORDS.forEach(r=>{const k=r.cliente+"||"+r.sigla;
+    (grp[k]=grp[k]||{cliente:r.cliente,sigla:r.sigla,filial:r.filial,n:0,atr:0,peds:new Set(),ent:0,ret:0,itens:[]});
+    grp[k].n++;if(r.atrasado)grp[k].atr++;grp[k].peds.add(r.pedido);
+    grp[k].ent+=r.valorEntregar;grp[k].ret+=r.valorRetido;grp[k].itens.push(r);});
+  let rows=Object.entries(grp).map(([k,v])=>({k,...v})).filter(g=>g.n>=2 || (g.ent+g.ret)>20000);
+  if(f.sigla) rows=rows.filter(g=>g.sigla===f.sigla);
+  if(f.so2) rows=rows.filter(g=>g.n>=2);
+  if(f.soret) rows=rows.filter(g=>g.ret>0);
+  if(f.busca){const q=f.busca.toLowerCase();rows=rows.filter(g=>g.cliente.toLowerCase().includes(q));}
+  rows.sort((a,b)=>(b.ent+b.ret)-(a.ent+a.ret));
+  let h=`<thead><tr><th style="width:30px"></th><th>Cliente</th><th>Filial</th><th class="num">Itens</th>
+    <th class="num">Atrasados</th><th class="num">Pedidos</th><th class="money">A entregar</th><th class="money">Retido</th><th></th></tr></thead><tbody>`;
+  if(!rows.length) h+=`<tr><td colspan="9"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhum cliente recorrente para os filtros.</div></td></tr>`;
+  rows.forEach(g=>{
+    const open=recorOpen[g.k];
+    h+=`<tr class="exp-row ${open?'open':''}" onclick="toggleRecor('${g.k.replace(/'/g,"\\'")}')">
+      <td><i class="ti ti-chevron-right chev"></i></td>
+      <td class="strong">${esc(g.cliente)}</td>
+      <td>${filialCell({sigla:g.sigla,filial:g.filial})}</td>
+      <td class="num" style="font-weight:${g.n>=4?'700':'400'};color:${g.n>=4?'var(--amber-dk)':'var(--text)'}">${fmtINT(g.n)}</td>
+      <td class="num" style="color:${g.atr?'var(--red)':'var(--text3)'}">${fmtINT(g.atr)}</td>
+      <td class="num muted">${g.peds.size}</td>
+      <td class="money" style="color:var(--green-dk)">${fmtBRL(g.ent)}</td>
+      <td class="money" style="color:var(--red-dk)">${fmtBRL(g.ret)}</td>
+      <td><button class="btn-cobrar" onclick='event.stopPropagation();openMailFor("${g.sigla}")'><i class="ti ti-mail"></i> Cobrar</button></td></tr>`;
+    if(open){
+      const its=g.itens.slice().sort((a,b)=>b.valorParado-a.valorParado);
+      let inner=`<table><thead><tr><th>Status</th><th>Pedido</th><th>Produto</th><th class="num">Dias</th><th class="num">Saldo</th><th class="money">Vlr parado</th><th class="money">Entregar</th><th class="money">Retido</th></tr></thead><tbody>`;
+      its.forEach(r=>{inner+=`<tr><td>${pill(r.status)}</td><td class="muted">${r.pedido}</td><td>${esc(r.produto)}</td>
+        <td class="num ${r.atrasado?'':''}" style="color:${r.atrasado?'var(--red)':'var(--text2)'}">${r.dias}d</td>
+        <td class="num">${fmtINT(r.saldo)}</td><td class="money">${fmtBRL(r.valorParado)}</td>
+        <td class="money" style="color:var(--green-dk)">${r.valorEntregar?fmtBRL(r.valorEntregar):'—'}</td>
+        <td class="money" style="color:var(--red-dk)">${r.valorRetido?fmtBRL(r.valorRetido):'—'}</td></tr>`;});
+      inner+="</tbody></table>";
+      h+=`<tr class="detail-row"><td colspan="9"><div class="detail-inner">${inner}</div></td></tr>`;
+    }
+  });
+  document.getElementById("tblRecor").innerHTML=h+"</tbody>";
+}
+function toggleRecor(k){recorOpen[k]=!recorOpen[k];renderRecor();}
+
+/* ============================================================
+   CONFERÊNCIA DA BASE
+   ============================================================ */
+function renderConferencia(){
+  const sigs=[...new Set(RECORDS.map(r=>r.sigla))].sort();
+  let semBase=[], okCount=0, campos=["auditor","regional","gerente","supervisor"];
+  let rowsH="";
+  sigs.forEach(s=>{
+    const b=BASE[s];
+    if(!b){semBase.push(s);return;}
+    const faltas=campos.filter(c=>!b[c]);
+    const ok=faltas.length===0;
+    if(ok) okCount++;
+    rowsH+=`<tr>
+      <td>${ok?'<span class="okcheck"><i class="ti ti-circle-check-filled"></i></span>':'<span class="warncheck"><i class="ti ti-alert-triangle-filled"></i></span>'}</td>
+      <td class="strong"><span class="sg" style="color:var(--brand)">${s}</span> ${esc(b.loja)}</td>
+      <td>${esc(b.auditor)||'<span style="color:var(--red)">—</span>'}</td>
+      <td>${esc(b.regional)||'<span style="color:var(--red)">—</span>'}</td>
+      <td>${esc(b.gerente)||'<span style="color:var(--red)">—</span>'}</td>
+      <td>${esc(b.supervisor)||'<span style="color:var(--red)">—</span>'}</td>
+      <td>${fmtINT(RECORDS.filter(r=>r.sigla===s).length)}</td></tr>`;
+  });
+  let html=`<div class="cards" style="margin-bottom:18px">
+    ${kpi("g","Filiais conferidas OK","circle-check",fmtINT(okCount),"auditor, regional, gerente e supervisor preenchidos")}
+    ${kpi(semBase.length?"r":"g","Filiais sem cadastro na base","alert-triangle",fmtINT(semBase.length),semBase.length?semBase.join(", "):"todas cadastradas")}
+    ${kpi("b","Filiais no relatório","building-store",fmtINT(sigs.length),"com itens em aberto")}</div>`;
+  if(semBase.length) html+=`<div class="insight crit"><h3><i class="ti ti-alert-triangle"></i> Filiais do relatório ausentes na base</h3>
+    <p>Os itens destas filiais aparecem sem auditor/regional/gerente/supervisor. Inclua-as na base: <b>${semBase.join(", ")}</b></p></div>`;
+  html+=`<div class="tablewrap full"><table><thead><tr><th>OK</th><th>Filial</th><th>Auditor</th><th>Regional</th><th>Gerente</th><th>Supervisor</th><th class="num">Itens</th></tr></thead><tbody>${rowsH}</tbody></table></div>`;
+  document.getElementById("confBox").innerHTML=html;
+}
+
+/* ============================================================
+   RENDER: AUDITORIA DE COBRANÇA
+   ============================================================ */
+const AUD_LABEL={nao:"Não cobrado",aguardando:"Cobrado · aguardando",reincidente:"Reincidente"};
+const AUD_PILL={nao:"nao",aguardando:"aguard",reincidente:"reinc"};
+function auditBadge(r){
+  const a=r.audit||{st:"nao"};
+  let extra="";
+  if(a.st==="aguardando") extra=`<div class="cobr-info">cobrado em <b>${fmtDATE(new Date(a.dataCobr))}</b> · há ${a.dias}d${a.vezes>1?` · ${a.vezes}x`:""}</div>`;
+  else if(a.st==="reincidente") extra=`<div class="cobr-info">cobrado em <b>${fmtDATE(new Date(a.dataCobr))}</b> · há <b style="color:var(--red)">${a.dias}d</b>${a.vezes>1?` · já cobrado ${a.vezes}x`:""}</div>`;
+  return `<span class="pill ${AUD_PILL[a.st]}">${AUD_LABEL[a.st]}</span>${extra}`;
+}
+function markButton(r){
+  const done=r.audit&&r.audit.st!=="nao";
+  const k=itemKey(r).replace(/'/g,"\\'");
+  return done
+    ? `<button class="btn-mark done" title="Clique para desmarcar" onclick='event.stopPropagation();desmarcarItem("${k}")'><i class="ti ti-check"></i> Cobrado</button>`
+    : `<button class="btn-mark" title="Marcar como cobrado" onclick='event.stopPropagation();marcarItem("${k}")'><i class="ti ti-square"></i> Marcar</button>`;
+}
+function renderAuditoria(){
+  // badges da sidebar
+  const rsm=resumoAuditoria();
+  const bR=document.getElementById("badgeReinc");
+  if(bR){ bR.textContent=rsm.reincidente; bR.style.display=rsm.reincidente?"":"none"; bR.style.background="var(--red-lt)"; bR.style.color="var(--red)"; }
+
+  const box=document.getElementById("cardsAudit");
+  if(box) box.innerHTML=
+    kpi("","Não cobrados (cobráveis)","square",fmtINT(rsm.naoCobrado),`${fmtBRL(rsm.vNaoCobrado)} a cobrar`)+
+    kpi("b","Cobrados · aguardando","clock",fmtINT(rsm.aguardando),"dentro do prazo")+
+    kpi("r","Reincidentes","alert-triangle",fmtINT(rsm.reincidente),`${fmtBRL(rsm.vReincidente)} ignorado após cobrança`);
+
+  // filtros (constrói uma vez)
+  const fb=document.getElementById("fbAudit");
+  if(fb && !fb.dataset.built){
+    fb.dataset.built="1";
+    const filiais=uniq("sigla");
+    const filialOpts=filiais.map(s=>`<option value="${s}">${s} — ${esc((BASE[s]||{}).loja||s)}</option>`).join("");
+    fb.innerHTML=`
+      <div class="grp"><label>Buscar</label><input type="text" data-f="busca" placeholder="cliente, produto, pedido…"></div>
+      <div class="grp"><label>Filial</label><select data-f="sigla"><option value="">Todas</option>${filialOpts}</select></div>
+      <button class="chip on" data-f="st_nao"><i class="ti ti-square"></i> Não cobrados</button>
+      <button class="chip on" data-f="st_ag"><i class="ti ti-clock"></i> Aguardando</button>
+      <button class="chip on" data-f="st_re"><i class="ti ti-alert-triangle"></i> Reincidentes</button>
+      <div class="spacer"></div>
+      <button class="btn-clear" data-clear="1"><i class="ti ti-filter-off"></i> Limpar filtros</button>`;
+    fb.querySelectorAll("[data-f]").forEach(el=>{
+      if(el.classList.contains("chip")) el.onclick=()=>{el.classList.toggle("on");renderAuditoria();};
+      else el.oninput=el.onchange=()=>renderAuditoria();
+    });
+    fb.querySelector("[data-clear]").onclick=()=>{
+      fb.querySelectorAll("input").forEach(i=>i.value="");
+      fb.querySelectorAll("select").forEach(s=>s.value="");
+      fb.querySelectorAll(".chip").forEach(c=>c.classList.add("on"));
+      renderAuditoria();
+    };
+  }
+  const f={};
+  fb.querySelectorAll("[data-f]").forEach(el=>{f[el.dataset.f]=el.classList.contains("chip")?el.classList.contains("on"):el.value.trim();});
+
+  let rows=RECORDS.filter(r=>r.status!=="ret"); // auditoria é sobre o cobrável
+  const showSt={nao:f.st_nao,aguardando:f.st_ag,reincidente:f.st_re};
+  rows=rows.filter(r=>showSt[r.audit.st]);
+  if(f.sigla) rows=rows.filter(r=>r.sigla===f.sigla);
+  if(f.busca){const q=f.busca.toLowerCase();rows=rows.filter(r=>(`${r.cliente} ${r.produto} ${r.pedido} ${r.codProd}`).toLowerCase().includes(q));}
+  // ordena: reincidentes primeiro, depois não cobrados por valor, depois aguardando
+  const ordST={reincidente:0,nao:1,aguardando:2};
+  rows.sort((a,b)=> (ordST[a.audit.st]-ordST[b.audit.st]) || (b.valorEntregar-a.valorEntregar));
+
+  let h=`<thead><tr><th>Ação</th><th>Situação</th><th>Atraso</th><th>Filial</th><th>Cliente</th><th>Produto</th>
+    <th>Pedido</th><th class="num">Saldo</th><th class="money">A entregar</th></tr></thead><tbody>`;
+  if(!rows.length) h+=`<tr><td colspan="9"><div class="empty"><i class="ti ti-clipboard-check"></i>Nenhum item para os filtros atuais.</div></td></tr>`;
+  rows.forEach(r=>{
+    h+=`<tr>
+      <td>${markButton(r)}</td>
+      <td>${auditBadge(r)}</td>
+      <td>${r.atrasado?`<span class="tag-atr">${r.dias}d</span>`:`<span class="tag-ok">${r.dias}d</span>`}</td>
+      <td>${filialCell(r)}</td>
+      <td>${esc(r.cliente)}</td>
+      <td>${esc(r.produto)}</td>
+      <td class="muted">${r.pedido}</td>
+      <td class="num">${fmtINT(r.saldo)}</td>
+      <td class="money" style="color:var(--green-dk)">${r.valorEntregar?fmtBRL(r.valorEntregar):'—'}</td></tr>`;
+  });
+  document.getElementById("tblAudit").innerHTML=h+"</tbody>";
+}
+function aplicarPrazo(){
+  const v=parseInt(document.getElementById("inpReinc").value,10);
+  if(!v||v<1){toast("Informe um número de dias válido.");return;}
+  DIAS_REINCIDENCIA=v;
+  document.getElementById("prazoTxt").textContent=v;
+  calcularAuditoria(); persistirCobranca(); refreshAll();
+  toast(`Prazo de reincidência ajustado para ${v} dias.`);
+}
+function aplicarPrazo2(){aplicarPrazo();}
+function renderInsights(){
+  const box=document.getElementById("insightsBox");
+  const recs=RECORDS, tot=recs.length;
+  const vEntTot=recs.reduce((s,r)=>s+r.valorEntregar,0);
+  const vRetTot=recs.reduce((s,r)=>s+r.valorRetido,0);
+  const vParadoTot=recs.reduce((s,r)=>s+r.valorParado,0);
+
+  // PARETO por pedido (valor parado)
+  const porPed={}; recs.forEach(r=>porPed[r.pedido]=(porPed[r.pedido]||0)+r.valorParado);
+  const peds=Object.values(porPed).sort((a,b)=>b-a); let ac=0,n80=0;
+  for(const v of peds){ac+=v;n80++;if(ac>=0.8*vParadoTot)break;}
+
+  // concentração por filial (a liberar)
+  const byFil={}; recs.forEach(r=>{(byFil[r.sigla]=byFil[r.sigla]||{ent:0,ret:0,n:0,atr:0});
+    byFil[r.sigla].ent+=r.valorEntregar;byFil[r.sigla].ret+=r.valorRetido;byFil[r.sigla].n++;if(r.atrasado)byFil[r.sigla].atr++;});
+  const topEnt=Object.entries(byFil).sort((a,b)=>b[1].ent-a[1].ent).slice(0,6);
+
+  // aging
+  const faixa={a:{n:0,v:0},b:{n:0,v:0},c:{n:0,v:0},d:{n:0,v:0}};
+  recs.forEach(r=>{const d=r.dias;const k=d<90?'a':d<180?'b':d<365?'c':'d';faixa[k].n++;faixa[k].v+=r.valorParado;});
+
+  // produto dominante
+  const byProd={}; recs.forEach(r=>byProd[r.produto]=(byProd[r.produto]||0)+r.valorParado);
+  const topProd=Object.entries(byProd).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  // cliente concentrador
+  const byCli={}; recs.forEach(r=>{(byCli[r.cliente]=byCli[r.cliente]||{ret:0,ent:0,n:0});
+    byCli[r.cliente].ret+=r.valorRetido;byCli[r.cliente].ent+=r.valorEntregar;byCli[r.cliente].n++;});
+  const topCli=Object.entries(byCli).sort((a,b)=>(b[1].ret+b[1].ent)-(a[1].ret+a[1].ent)).slice(0,6);
+
+  // produto pago e parado (cobrança imediata)
+  const pago=recs.filter(r=>r.valorEntregar>0).sort((a,b)=>b.valorEntregar-a.valorEntregar).slice(0,6);
+  // risco margem (retido antigo alto valor)
+  const risco=recs.filter(r=>r.status==="ret"&&r.atrasado).sort((a,b)=>b.valorRetido-a.valorRetido).slice(0,6);
+
+  const filNome=s=>esc((BASE[s]||{}).loja||s);
+
+  let h=`<div class="insight-grid">`;
+  // Pareto
+  h+=`<div class="insight crit"><h3><i class="ti ti-flame"></i> Concentração de Pareto</h3>
+    <div class="big">${fmtINT(n80)} pedidos = 80%</div>
+    <p>Apenas <b>${fmtINT(n80)}</b> pedidos (${pct(n80,peds.length)} dos ${fmtINT(peds.length)}) concentram <b>80% de todo o valor parado</b>. Atacar esse grupo resolve a maior parte — não é preciso tratar os ${fmtINT(peds.length)} de uma vez.</p></div>`;
+  // Liberação imediata
+  h+=`<div class="insight good"><h3><i class="ti ti-cash"></i> Liberação imediata (já pago)</h3>
+    <div class="big">${fmtBRL(vEntTot)}</div>
+    <p><b>${fmtBRL(vEntTot)}</b> já foram pagos pelos clientes e o produto continua parado. É cobrança de entrega <b>sem risco</b> — o dinheiro já entrou. Priorize estes itens na aba "Cobrar agora".</p></div>`;
+  h+=`</div>`;
+
+  // Filiais concentradoras
+  h+=`<div class="insight warn"><h3><i class="ti ti-building-store"></i> Filiais que concentram o valor a liberar</h3>
+    <p>Onde a diretoria deve pressionar primeiro — maior volume pago e parado:</p><ul>`;
+  topEnt.forEach(([s,v])=>{h+=`<li><span><b>${s}</b> ${filNome(s)} <span class="muted">· ${fmtINT(v.n)} itens · ${fmtINT(v.atr)} atrasados</span></span>
+    <span class="v" style="color:var(--green-dk)">${fmtBRL(v.ent)}</span></li>`;});
+  h+=`</ul></div>`;
+
+  h+=`<div class="insight-grid">`;
+  // Produto dominante
+  h+=`<div class="insight"><h3><i class="ti ti-package"></i> Produtos que concentram o valor parado</h3><ul>`;
+  topProd.forEach(([p,v])=>{h+=`<li><span>${esc(p)}</span><span class="v">${(v/vParadoTot*100).toFixed(1)}% · ${fmtBRL(v)}</span></li>`;});
+  h+=`</ul></div>`;
+  // Aging
+  h+=`<div class="insight warn"><h3><i class="ti ti-hourglass"></i> Envelhecimento do estoque parado</h3>
+    <p>Quanto mais antigo, maior o risco: produto vendido barato, parado, e a reposição custa mais hoje.</p><ul>
+    <li><span>Até 90 dias</span><span class="v">${fmtINT(faixa.a.n)} · ${fmtBRL(faixa.a.v)}</span></li>
+    <li><span>90 a 180 dias</span><span class="v" style="color:var(--amber-dk)">${fmtINT(faixa.b.n)} · ${fmtBRL(faixa.b.v)}</span></li>
+    <li><span>180 a 365 dias</span><span class="v" style="color:var(--red)">${fmtINT(faixa.c.n)} · ${fmtBRL(faixa.c.v)}</span></li>
+    <li><span>+ 365 dias</span><span class="v" style="color:var(--red-dk)">${fmtINT(faixa.d.n)} · ${fmtBRL(faixa.d.v)}</span></li></ul></div>`;
+  h+=`</div>`;
+
+  h+=`<div class="insight-grid">`;
+  // Clientes concentradores
+  h+=`<div class="insight crit"><h3><i class="ti ti-user-exclamation"></i> Clientes com maior valor em aberto</h3>
+    <p>Concentração de risco — se não pagarem/retirarem, o impacto é grande:</p><ul>`;
+  topCli.forEach(([c,v])=>{h+=`<li><span>${esc(c)} <span class="muted">· ${fmtINT(v.n)} itens</span></span>
+    <span class="v">${fmtBRL(v.ret+v.ent)}${v.ret>0?` <span style="color:var(--red)">(${fmtBRL(v.ret)} retido)</span>`:''}</span></li>`;});
+  h+=`</ul></div>`;
+  // Risco de margem
+  h+=`<div class="insight warn"><h3><i class="ti ti-trending-down"></i> Risco de margem — retidos antigos</h3>
+    <p>Não pagos, atrasados e de alto valor. Forçar pagamento ou acionar devolução antes que a defasagem de preço aumente.</p><ul>`;
+  if(!risco.length) h+=`<li><span class="muted">Nenhum retido atrasado de destaque.</span><span></span></li>`;
+  risco.forEach(r=>{h+=`<li><span><b>${r.sigla}</b> ${esc(r.cliente)} <span class="muted">· ${r.dias}d</span></span>
+    <span class="v" style="color:var(--red-dk)">${fmtBRL(r.valorRetido)}</span></li>`;});
+  h+=`</ul></div>`;
+  h+=`</div>`;
+
+  // Parecer
+  const atrV=recs.filter(r=>r.atrasado).reduce((s,r)=>s+r.valorParado,0);
+  const topFilEnt=topEnt[0];
+  h+=`<div class="section-title">Parecer do auditor</div>
+    <div class="parecer"><h3><i class="ti ti-clipboard-text"></i> Leitura para a diretoria</h3>
+    <p>A entrega futura da rede soma <b>${fmtBRL(vParadoTot)}</b> em <b>${fmtINT(tot)}</b> itens parados. Desse total, <b>${fmtBRL(vEntTot)}</b> (${pct(vEntTot,vParadoTot)}) já estão pagos — é entrega cobrável imediatamente, sem risco. Os outros <b>${fmtBRL(vRetTot)}</b> dependem de pagamento e não devem ser entregues.</p>
+    <p>A concentração é alta: <b>${topFilEnt?topFilEnt[0]+" — "+filNome(topFilEnt[0]):"—"}</b> sozinha responde por <b>${topFilEnt?fmtBRL(topFilEnt[1].ent):"—"}</b> do valor a liberar, e ${fmtINT(n80)} pedidos concentram 80% de tudo. Em valor, <b>${fmtBRL(faixa.c.v+faixa.d.v)}</b> está parado há mais de 180 dias — produto comprado caro que, entregue lá na frente, sai com margem defasada.</p>
+    <div class="rec"><b>Recomendação:</b> (1) cobrar de imediato as filiais campeãs de valor pago e parado — começando por ${topFilEnt?topFilEnt[0]:"—"}; (2) atacar os ${fmtINT(n80)} pedidos do Pareto antes do resto; (3) sobre os ${fmtBRL(atrV)} já atrasados, exigir entrega ou devolução; (4) acompanhar os clientes concentradores e os retidos com +180 dias para decidir entre forçar pagamento ou devolver.</div></div>`;
+
+  box.innerHTML=h;
+}
+
+/* ============================================================
+   RENDER: EVOLUÇÃO
+   ============================================================ */
+function renderEvolucao(saveOk,loading){
+  const cmp=document.getElementById("cmpBox"), status=document.getElementById("histStatus");
+  if(loading){cmp.innerHTML=`<div class="insight"><p class="muted">Carregando histórico da nuvem…</p></div>`;status.textContent="Sincronizando…";}
+  if(COMP){
+    const vEnt=COMP.entreguesTotal.reduce((s,r)=>s+(r.entregue*(r.vu||0)),0)+COMP.parciais.reduce((s,r)=>s+(r.entregue*(r.vu||0)),0);
+    cmp.innerHTML=`<div class="cards" style="margin-bottom:8px">
+      ${kpi("g","Entregue por completo","circle-check",fmtINT(COMP.qtdEntTotal),"desde "+fmtDATE(new Date(COMP.dataAnt)))}
+      ${kpi("a","Entrega parcial","adjustments",fmtINT(COMP.qtdParc),"saldo reduziu")}
+      ${kpi("b","Pedidos novos","plus",fmtINT(COMP.qtdNovos),"entraram nesta semana")}
+      ${kpi("g","Saiu do estoque parado","businessplan","≈ "+fmtBRL(vEnt),"valor liberado no período")}</div>
+      <div class="insight good"><p>Comparação automática entre esta importação (<b>${fmtDATE(dataRef)}</b>) e a anterior (<b>${fmtDATE(new Date(COMP.dataAnt))}</b>). Itens que sumiram do relatório foram entregues; saldo menor = entrega parcial.</p></div>`;
+  }else if(!loading){
+    cmp.innerHTML=`<div class="insight warn"><h3><i class="ti ti-info-circle"></i> Sem semana anterior para comparar</h3>
+      <p>Esta é a primeira importação registrada. A partir da próxima vez que você subir um relatório, o painel mostra aqui o que foi entregue e o que continua parado — incluindo pedidos específicos.</p></div>`;
+  }
+  if(saveOk===true) status.innerHTML=`<i class="ti ti-cloud-check"></i> Histórico sincronizado na nuvem. <b>${HIST.semanas.length}</b> importação(ões) registrada(s).`;
+  else if(saveOk===false) status.innerHTML=`<i class="ti ti-cloud-x"></i> Não consegui gravar na nuvem agora. A comparação desta sessão continua válida; tentará de novo na próxima importação.`;
+
+  const semanas=(HIST.semanas||[]).slice().reverse();
+  let h=`<thead><tr><th>Data</th><th class="num">Itens</th><th class="num">Atrasados</th>
+    <th class="money">A entregar</th><th class="money">Retido</th><th class="num">Δ itens</th></tr></thead><tbody>`;
+  if(!semanas.length) h+=`<tr><td colspan="6"><div class="empty"><i class="ti ti-clock"></i>Nenhuma importação registrada ainda.</div></td></tr>`;
+  semanas.forEach((s,i)=>{const prev=semanas[i+1];const d=prev?s.itens-prev.itens:null;
+    const dt=d==null?'<span class="muted">—</span>':`<span style="color:${d<0?'var(--green)':d>0?'var(--red)':'var(--text3)'}">${d>0?'+':''}${fmtINT(d)}</span>`;
+    h+=`<tr><td class="strong">${fmtDATE(new Date(s.data))}</td><td class="num">${fmtINT(s.itens)}</td>
+      <td class="num" style="color:${s.atrasados?'var(--red)':'var(--text3)'}">${fmtINT(s.atrasados)}</td>
+      <td class="money" style="color:var(--green-dk)">${fmtBRL(s.vEntregar)}</td>
+      <td class="money" style="color:var(--red-dk)">${fmtBRL(s.vRetido)}</td><td class="num">${dt}</td></tr>`;});
+  document.getElementById("tblHist").innerHTML=h+"</tbody>";
+  renderEntregues();
+}
+function renderEntregues(){
+  const box=document.getElementById("fbEntregues");
+  if(box && !box.dataset.built){box.dataset.built="1";
+    box.innerHTML=`<div class="grp"><label>Buscar</label><input type="text" id="entBusca" placeholder="cliente, produto, pedido…"></div>
+      <button class="chip on" id="entTotal"><i class="ti ti-circle-check"></i> Entregues totais</button>
+      <button class="chip on" id="entParc"><i class="ti ti-adjustments"></i> Parciais</button>
+      <div class="spacer"></div>
+      <button class="btn-clear" id="entClear"><i class="ti ti-filter-off"></i> Limpar</button>`;
+    const r=()=>renderEntregues();
+    document.getElementById("entBusca").oninput=r;
+    document.getElementById("entTotal").onclick=function(){this.classList.toggle("on");r();};
+    document.getElementById("entParc").onclick=function(){this.classList.toggle("on");r();};
+    document.getElementById("entClear").onclick=()=>{document.getElementById("entBusca").value="";
+      document.getElementById("entTotal").classList.add("on");document.getElementById("entParc").classList.add("on");r();};
+  }
+  const tbl=document.getElementById("tblEntregues");
+  if(!COMP){tbl.innerHTML=`<thead><tr><th></th></tr></thead><tbody><tr><td><div class="empty"><i class="ti ti-package"></i>A lista de itens entregues aparece após a segunda importação.</div></td></tr></tbody>`;return;}
+  const q=(document.getElementById("entBusca")?.value||"").toLowerCase();
+  const showT=document.getElementById("entTotal")?.classList.contains("on")??true;
+  const showP=document.getElementById("entParc")?.classList.contains("on")??true;
+  let rows=[];
+  if(showT) COMP.entreguesTotal.forEach(r=>rows.push({...r,tipo:"total"}));
+  if(showP) COMP.parciais.forEach(r=>rows.push({...r,tipo:"parc"}));
+  if(q) rows=rows.filter(r=>(`${r.c} ${r.p} ${r.ped} ${r.f}`).toLowerCase().includes(q));
+  rows.sort((a,b)=>(b.entregue*(b.vu||0))-(a.entregue*(a.vu||0)));
+  let h=`<thead><tr><th>Tipo</th><th>Filial</th><th>Pedido</th><th>Cliente</th><th>Produto</th>
+    <th class="num">Entregue</th><th class="num">Saldo antes</th><th class="num">Saldo agora</th></tr></thead><tbody>`;
+  if(!rows.length) h+=`<tr><td colspan="8"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhuma entrega no período (para os filtros atuais).</div></td></tr>`;
+  rows.forEach(r=>{h+=`<tr>
+    <td>${r.tipo==="total"?'<span class="pill total">Entregue</span>':'<span class="pill parc">Parcial</span>'}</td>
+    <td>${filialCell({sigla:r.f,filial:(BASE[r.f]||{}).loja||r.f})}</td>
+    <td class="muted">${r.ped}</td><td>${esc(r.c)}</td><td>${esc(r.p)}</td>
+    <td class="num" style="color:var(--green-dk);font-weight:700">${fmtINT(r.entregue)}</td>
+    <td class="num muted">${fmtINT(r.tipo==="total"?r.entregue:r.de)}</td>
+    <td class="num">${r.tipo==="total"?'<span style="color:var(--green)">0</span>':fmtINT(r.para)}</td></tr>`;});
+  tbl.innerHTML=h+"</tbody>";
+}
+
+/* ============================================================
+   MODAL DE E-MAIL — auditor responsável = o da base (corrigido)
+   ============================================================ */
+let mailSigla=null;
+function openMailFor(sigla){
+  mailSigla=sigla;
+  const b=BASE[sigla]||{};
+  const itens=RECORDS.filter(r=>r.sigla===sigla);
+  const cobrar=itens.filter(r=>r.status!=="ret");
+  const retidos=itens.filter(r=>r.status==="ret");
+  const vEnt=cobrar.reduce((s,r)=>s+r.valorEntregar,0);
+  const vRet=retidos.reduce((s,r)=>s+r.valorRetido,0);
+  const atr=itens.filter(r=>r.atrasado).length;
+
+  document.getElementById("mFilial").textContent=`${sigla} · ${b.loja||""}`;
+
+  // Destinatários: diretoria fixa + os responsáveis REAIS da filial (da base).
+  // João Vitor entra como REMETENTE (auditoria), não como "auditor da filial".
+  const diretoria=[["Diretor Executivo","Aldo"],["Proprietário","Rafa Barsch"],["Gerente Administrativo","Luciana Ramos"]];
+  const responsaveis=[["Auditor responsável",b.auditor||"—"],["Gerente Regional",b.regional||"—"],
+    ["Gerente da loja",b.gerente||"—"],["Supervisor da loja",b.supervisor||"—"]];
+  let recipsHtml = diretoria.map(([p,n])=>`<span class="r">${p}: <b>${esc(n)}</b></span>`).join("");
+  recipsHtml += responsaveis.map(([p,n])=>`<span class="r">${p}: <b>${esc(n)}</b></span>`).join("");
+  recipsHtml += `<span class="r sender">Remetente: <b>Auditoria (João Vitor)</b></span>`;
+  document.getElementById("mRecips").innerHTML=recipsHtml;
+
+  document.getElementById("mSubject").value=`[Entrega Futura] Cobrança de entrega — ${b.loja||sigla} (${sigla}) — ${fmtDATE(dataRef)}`;
+
+  let linhas=cobrar.slice().sort((a,b)=>b.valorEntregar-a.valorEntregar).slice(0,8)
+    .map(r=>`  • Pedido ${r.pedido} — ${r.cliente}: ${fmtINT(r.qtdEntregar)} un (${fmtBRL(r.valorEntregar)})${r.atrasado?` — atrasado ${r.dias}d`:""}`).join("\n");
+  if(cobrar.length>8) linhas+=`\n  • … e mais ${cobrar.length-8} itens (ver PDF anexo).`;
+  if(!cobrar.length) linhas="  (nenhum item liberado para entrega imediata nesta filial)";
+
+  document.getElementById("mBody").value=
+`Prezados,
+
+Entrega futura da filial ${b.loja||sigla} (${sigla}) — posição de ${fmtDATE(dataRef)}.
+
+A liberar para entrega (já pago): ${fmtBRL(vEnt)} em ${fmtINT(cobrar.length)} itens${atr?`  ·  ${fmtINT(atr)} atrasados`:""}
+Retido (cliente ainda deve): ${fmtBRL(vRet)} em ${fmtINT(retidos.length)} itens
+
+Principais itens a entregar:
+${linhas}
+
+Solicito ao auditor responsável (${b.auditor||"—"}) e ao gerente regional (${b.regional||"—"}) que cobrem o gerente (${b.gerente||"—"}) e o supervisor (${b.supervisor||"—"}) a efetivação destas entregas, retornando o que for entregue até a próxima emissão. Detalhe completo no PDF anexo.
+
+Regra: entrega-se apenas o que está pago; saldo devedor permanece retido (no desacordo, devolução da entrega futura).
+
+Auditoria — Agroquima`;
+
+  const temEmail=Object.values(EMAILS_DIRETORIA).some(Boolean);
+  document.getElementById("mEmailNote").style.display="block";
+  document.getElementById("mEmailNote").innerHTML= temEmail
+    ? "Os endereços cadastrados serão usados ao abrir no e-mail."
+    : "Para o botão <b>Abrir no e-mail</b> já vir com os destinatários preenchidos, cadastre os endereços em <code>EMAILS_DIRETORIA</code> / <code>EMAILS_PESSOAS</code> no código. Por ora, copie o texto e selecione os destinatários no seu e-mail.";
+
+  document.getElementById("modal").classList.add("on");
+}
+function openMail(){
+  const b=BASE[mailSigla]||{};
+  const dests=[];
+  Object.values(EMAILS_DIRETORIA).forEach(e=>{if(e)dests.push(e);});
+  [b.auditor,b.regional,b.gerente,b.supervisor].forEach(nome=>{if(nome&&EMAILS_PESSOAS[nome])dests.push(EMAILS_PESSOAS[nome]);});
+  const subject=encodeURIComponent(document.getElementById("mSubject").value);
+  const body=encodeURIComponent(document.getElementById("mBody").value);
+  window.location.href=`mailto:${dests.join(",")}?subject=${subject}&body=${body}`;
+  marcarFilial(mailSigla);
+}
+function copyMail(){
+  const txt="Assunto: "+document.getElementById("mSubject").value+"\n\n"+document.getElementById("mBody").value;
+  navigator.clipboard.writeText(txt).then(()=>toast("Texto copiado — itens marcados como cobrados."),()=>toast("Não foi possível copiar."));
+  marcarFilial(mailSigla, true); calcularAuditoria(); persistirCobranca(); refreshAll();
+}
+function closeModal(){document.getElementById("modal").classList.remove("on");}
+document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
+
+/* ---------- PDF de 1 página por filial ---------- */
+function gerarPDFFilial(){
+  const sigla=mailSigla, b=BASE[sigla]||{};
+  const itens=RECORDS.filter(r=>r.sigla===sigla);
+  const cobrarAll=itens.filter(r=>r.status!=="ret").sort((a,b)=>b.valorEntregar-a.valorEntregar);
+  const vEnt=cobrarAll.reduce((s,r)=>s+r.valorEntregar,0);
+  const vRet=itens.filter(r=>r.status==="ret").reduce((s,r)=>s+r.valorRetido,0);
+  const atr=itens.filter(r=>r.atrasado).length;
+  const LIM=28, cobrar=cobrarAll.slice(0,LIM), resto=cobrarAll.slice(LIM);
+  const vResto=resto.reduce((s,r)=>s+r.valorEntregar,0);
+  const linhas=cobrar.map(r=>`<tr><td>${r.pedido}</td><td>${esc(r.cliente)}</td><td>${esc(r.produto)}</td>
+    <td class="c">${r.atrasado?`<b style="color:#c0392b">${r.dias}d</b>`:r.dias+"d"}</td>
+    <td class="r">${fmtINT(r.qtdEntregar)}</td><td class="r">${fmtBRL(r.valorEntregar)}</td>
+    <td class="c">${r.status==="parc"?"Parcial":"Total"}</td></tr>`).join("")
+    + (resto.length?`<tr style="background:#eef3fc"><td colspan="5" style="font-style:italic;color:#556"># mais ${resto.length} itens de menor valor (ver painel)</td><td class="r" style="font-weight:700;color:#159e6a">${fmtBRL(vResto)}</td><td></td></tr>`:"");
+  const logo=`<svg viewBox="0 0 40 40" width="34" height="34"><rect x="3" y="3" width="15.5" height="15.5" rx="3" fill="#0b5cab"/><rect x="21.5" y="3" width="15.5" height="15.5" rx="3" fill="#5b8cff"/><rect x="3" y="21.5" width="15.5" height="15.5" rx="3" fill="#5b8cff"/><rect x="21.5" y="21.5" width="15.5" height="15.5" rx="3" fill="#0b5cab"/></svg>`;
+  const win=window.open("","_blank");
+  if(!win){toast("Permita pop-ups para gerar o PDF.");return;}
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Entrega Futura ${sigla} ${fmtDATE(dataRef)}</title>
+  <style>@page{size:A4;margin:14mm}*{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Arial,Helvetica,sans-serif;color:#1a2433;font-size:11px;line-height:1.4}
+  .hd{display:flex;align-items:center;gap:12px;border-bottom:3px solid #0b5cab;padding-bottom:12px;margin-bottom:16px}
+  .hd .nm{font-size:18px;font-weight:800;letter-spacing:1.5px;color:#0b5cab}.hd .sb{font-size:10px;color:#667;letter-spacing:.5px;text-transform:uppercase}
+  .hd .rt{margin-left:auto;text-align:right;font-size:10px;color:#556}.hd .rt b{color:#1a2433}
+  h2{font-size:13px;color:#0b5cab;margin:18px 0 8px;border-left:4px solid #0b5cab;padding-left:8px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+  .box{border:1px solid #d6deec;border-radius:6px;padding:9px 11px}.box .l{font-size:9px;color:#778;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+  .box .v{font-size:16px;font-weight:800}.box.g .v{color:#159e6a}.box.r .v{color:#c0392b}.box.b .v{color:#0b5cab}
+  .resp{font-size:10px;color:#445;margin:4px 0 2px}.resp b{color:#1a2433}
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:10px}th{background:#0b5cab;color:#fff;text-align:left;padding:6px 7px;font-size:9.5px;font-weight:600}
+  th.r,td.r{text-align:right}th.c,td.c{text-align:center}td{padding:5px 7px;border-bottom:1px solid #e6ebf4}tr:nth-child(even) td{background:#f5f8fd}
+  .ft{margin-top:14px;font-size:9px;color:#889;border-top:1px solid #d6deec;padding-top:8px;line-height:1.5}
+  .rule{background:#eef3fc;border:1px solid #d6deec;border-radius:6px;padding:8px 11px;font-size:9.5px;color:#445;margin-top:10px}</style></head><body>
+  <div class="hd">${logo}<div><div class="nm">AGROQUIMA</div><div class="sb">Controle de Entrega Futura</div></div>
+    <div class="rt">Filial <b>${esc(b.loja||sigla)} (${sigla})</b><br>Posição: <b>${fmtDATE(dataRef)}</b></div></div>
+  <div class="grid">
+    <div class="box b"><div class="l">Itens em aberto</div><div class="v">${fmtINT(itens.length)}</div></div>
+    <div class="box r"><div class="l">Atrasados</div><div class="v">${fmtINT(atr)}</div></div>
+    <div class="box g"><div class="l">A liberar (pago)</div><div class="v">${fmtBRL(vEnt)}</div></div>
+    <div class="box r"><div class="l">Retido</div><div class="v">${fmtBRL(vRet)}</div></div></div>
+  <div class="resp">Auditor: <b>${esc(b.auditor||"—")}</b> &nbsp;·&nbsp; Regional: <b>${esc(b.regional||"—")}</b> &nbsp;·&nbsp; Gerente: <b>${esc(b.gerente||"—")}</b> &nbsp;·&nbsp; Supervisor: <b>${esc(b.supervisor||"—")}</b></div>
+  <h2>Forçar entrega — produto pago e parado (${cobrarAll.length} ${cobrarAll.length===1?'item':'itens'}${resto.length?`, top ${LIM} por valor`:''})</h2>
+  <table><thead><tr><th>Pedido</th><th>Cliente</th><th>Produto</th><th class="c">Atraso</th><th class="r">Qtd</th><th class="r">Valor</th><th class="c">Tipo</th></tr></thead>
+  <tbody>${linhas||`<tr><td colspan="7" style="text-align:center;color:#889;padding:14px">Nenhum item liberado para entrega imediata.</td></tr>`}</tbody></table>
+  <div class="rule"><b>Regra:</b> cobra-se a entrega apenas do que já está pago. Itens com saldo devedor permanecem retidos; havendo desacordo, aciona-se a devolução da entrega futura.</div>
+  <div class="ft">Documento gerado automaticamente pela Auditoria — Agroquima. Valores em reais (R$). Atraso medido contra o limite de dias da linha do produto.</div>
+  <script>window.onload=function(){window.print();}<\/script></body></html>`);
+  win.document.close();
+  marcarFilial(mailSigla);
+}
+
+/* ---------- export CSV ---------- */
+function exportCSV(){
+  const cols=[["sigla","Filial"],["filial","Nome Filial"],["estado","UF"],["auditor","Auditor"],["regional","Regional"],
+    ["gerente","Gerente"],["supervisor","Supervisor"],["pedido","Pedido"],["emissao","Emissao NF"],
+    ["codCli","Cod Cliente"],["cliente","Cliente"],["cidade","Cidade"],["vendedor","Vendedor"],
+    ["codProd","Cod Produto"],["produto","Produto"],["linha","Linha"],["sublinha","SubLinha"],["fornecedor","Fornecedor"],
+    ["dias","Dias Pendentes"],["limite","Limite"],["atrasado","Atrasado"],
+    ["qtdVnd","Qtd Vendida"],["qtdEntr","Qtd Entregue"],["qtdDev","Qtd Devolvida"],["saldo","Saldo"],
+    ["vlrUnit","Vlr Unitario"],["valorParado","Valor Parado"],["devido","Titulo Devido"],["valorPago","Valor Ja Pago"],
+    ["qtdEntregar","Qtd a Entregar"],["valorEntregar","Valor a Entregar"],["qtdRetida","Qtd Retida"],["valorRetido","Valor Retido"],
+    ["status","Status Cobranca"],["tipoEntr","Tipo Entrega"],
+    ["_auditSt","Situacao Cobranca"],["_auditData","Data Cobranca"],["_auditVezes","Vezes Cobrado"]];
+  const sep=";"; let csv="\uFEFF"+cols.map(c=>c[1]).join(sep)+"\n";
+  RECORDS.forEach(r=>{csv+=cols.map(([k])=>{let v=r[k];
+    if(k==="emissao")v=fmtDATE(v);if(k==="atrasado")v=v?"SIM":"nao";if(k==="status")v=STAT_LABEL[v];
+    if(k==="_auditSt")v=r.status==="ret"?"-":AUD_LABEL[r.audit?r.audit.st:"nao"];
+    if(k==="_auditData")v=r.audit&&r.audit.dataCobr?fmtDATE(new Date(r.audit.dataCobr)):"";
+    if(k==="_auditVezes")v=r.audit?r.audit.vezes:0;
+    if(typeof v==="number")v=String(v).replace(".",",");
+    v=String(v==null?"":v).replace(/"/g,'""');return /[;\n"]/.test(v)?`"${v}"`:v;}).join(sep)+"\n";});
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a"),d=dataRef;
+  a.href=URL.createObjectURL(blob);
+  a.download=`Entrega_Futura_${String(d.getDate()).padStart(2,"0")}_${String(d.getMonth()+1).padStart(2,"0")}_${d.getFullYear()}.csv`;
+  a.click();URL.revokeObjectURL(a.href);toast("CSV gerado.");
+}
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("on");
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove("on"),2600);}
+
+</script>
+</html>
