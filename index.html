@@ -12,8 +12,8 @@
   --bg:#0a1322;--bg2:#101d33;--bg3:#16243d;
   --text:#e8f0fb;--text2:#8ba2c2;--text3:#54667f;
   --border:#1a2c47;--border-2:#27406a;
-  --brand:#2b7fd4;--brand2:#4d96e0;--brand-lt:#0c2a4d;--brand-glow:rgba(43,127,212,.2);
-  --brand-dk:#9cc4ec;--accent:#2b7fd4;
+  --brand:#0e74bb;--brand2:#2b93d8;--brand-lt:#0c2a4d;--brand-glow:rgba(14,116,187,.25);
+  --brand-dk:#9cc4ec;--accent:#0e74bb;
   --red:#e25c4d;--red-lt:#2a1110;--red-dk:#f08a7e;
   --green:#35b87a;--green-lt:#0c2417;--green-dk:#5fd4a0;
   --amber:#e0a73a;--amber-lt:#2a1f08;--amber-dk:#f2c451;
@@ -282,11 +282,15 @@ tbody tr:last-child td{border-bottom:none}
 <div class="topbar">
   <div class="brand">
     <div class="brand-logo">
-      <svg viewBox="0 0 42 42" width="26" height="26" aria-hidden="true">
-        <rect x="2"  y="2"  width="17" height="17" rx="3.5" fill="#fff" opacity=".95"/>
-        <rect x="23" y="2"  width="17" height="17" rx="3.5" fill="#bcd6f5"/>
-        <rect x="2"  y="23" width="17" height="17" rx="3.5" fill="#bcd6f5"/>
-        <rect x="23" y="23" width="17" height="17" rx="3.5" fill="#fff" opacity=".95"/>
+      <svg viewBox="0 0 64 48" width="34" height="26" aria-hidden="true" fill="none">
+        <path d="M16 2 L24 2" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <path d="M19 2 V14 L11 30 A8 8 0 0 0 18.5 42 H21.5 A8 8 0 0 0 29 30 L21 14 V2"
+          stroke="#fff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M11.3 28.5 H28.7 V33.5 A8 8 0 0 1 20.7 41.5 H19.3 A8 8 0 0 1 11.3 33.5 Z" fill="#fff"/>
+        <path d="M40 2 L48 2" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <path d="M43 2 V14 L35 30 A8 8 0 0 0 42.5 42 H45.5 A8 8 0 0 0 53 30 L45 14 V2"
+          stroke="#fff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M35.3 28.5 H52.7 V33.5 A8 8 0 0 1 44.7 41.5 H43.3 A8 8 0 0 1 35.3 33.5 Z" fill="#fff"/>
       </svg>
     </div>
     <div>
@@ -337,9 +341,6 @@ tbody tr:last-child td{border-bottom:none}
     <button class="nav-item" data-pg="filiais"><i class="ti ti-building-store"></i> Por filial</button>
     <button class="nav-item" data-pg="auditores"><i class="ti ti-user-check"></i> Por auditor</button>
     <button class="nav-item" data-pg="regionais"><i class="ti ti-map-pin"></i> Por regional</button>
-    <div class="nav-group">Base</div>
-    <button class="nav-item" data-pg="base"><i class="ti ti-table"></i> Base completa</button>
-    <button class="nav-item" data-pg="conferencia"><i class="ti ti-shield-check"></i> Conferência da base</button>
     <div class="nav-group">Sistema</div>
     <button class="nav-item" data-pg="config"><i class="ti ti-settings"></i> Configuração</button>
   </nav>
@@ -477,6 +478,15 @@ tbody tr:last-child td{border-bottom:none}
 
       <div class="insight" id="cfgInfo">
         <p><b>Sincronização automática com fallback para o GitHub:</b> a cada importação, o painel tenta publicar o histórico completo direto na nuvem (JSONBin). Quando cabe no limite do plano grátis (~100KB), todo mundo vê na hora. Quando o histórico fica grande demais: o painel cria uma branch com os dados completos e abre um <b>Pull Request</b> automático — isso dispara notificação no GitHub para quem tem acesso revisar e mesclar. Sem Token do GitHub configurado, o painel só avisa que não conseguiu sincronizar; ele nunca perde os dados desta sessão.</p>
+      </div>
+
+      <div class="card-box" style="margin-bottom:16px">
+        <h3 style="margin-top:0"><i class="ti ti-database"></i> Dados e base</h3>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Acesso avançado à base bruta — uso pontual, não é necessário no dia a dia de cobrança.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" onclick="gotoPage('base')"><i class="ti ti-table"></i> Ver base completa</button>
+          <button class="btn" onclick="gotoPage('conferencia')"><i class="ti ti-shield-check"></i> Conferência da base</button>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start">
@@ -1293,14 +1303,16 @@ function bootApp(){
 }
 
 /* nav */
-document.querySelectorAll(".nav-item").forEach(t=>t.onclick=()=>{
+function gotoPage(pg){
   document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("on"));
   document.querySelectorAll(".page").forEach(x=>x.classList.remove("on"));
-  t.classList.add("on");
-  document.getElementById("pg-"+t.dataset.pg).classList.add("on");
+  const navBtn=document.querySelector(`.nav-item[data-pg="${pg}"]`);
+  if(navBtn) navBtn.classList.add("on");
+  document.getElementById("pg-"+pg).classList.add("on");
   document.querySelector(".main").scrollTop=0;
-  ensurePageRendered(t.dataset.pg);
-});
+  ensurePageRendered(pg);
+}
+document.querySelectorAll(".nav-item").forEach(t=>t.onclick=()=>gotoPage(t.dataset.pg));
 
 /* ============================================================
    RENDER: RESUMO
@@ -1434,7 +1446,7 @@ function detailTable(tblId,rows){
     {k:"_mail",t:"",sort:false,render:r=>`<button class="btn-cobrar" onclick='openMailFor("${r.sigla}")'><i class="ti ti-mail"></i> Cobrar</button>`},
     {k:"_audit",t:"Cobrança",sort:false,render:r=>`${markButton(r)}${r.audit&&r.audit.st!=="nao"?`<div class="cobr-info">${r.audit.st==="reincidente"?'<b style="color:var(--red)">reincidente</b>':'aguardando'} · ${r.audit.dias}d</div>`:''}`},
     {k:"status",t:"Status",render:r=>pill(r.status)},
-    {k:"atrasado",t:"Atraso",render:r=>r.atrasado?`<span class="tag-atr">${r.dias}d</span>`:`<span class="tag-ok">${r.dias}d</span>`},
+    {k:"dias",t:"Dias pendente",num:true,render:r=>r.atrasado?`<span class="tag-atr">${r.dias}d</span>`:`<span class="tag-ok">${r.dias}d</span>`},
     {k:"sigla",t:"Filial",render:r=>filialCell(r)},
     {k:"auditor",t:"Auditor",render:r=>esc(r.auditor)},
     {k:"cliente",t:"Cliente",render:r=>esc(r.cliente)},
