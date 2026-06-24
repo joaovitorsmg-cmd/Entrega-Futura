@@ -998,16 +998,6 @@ wireConfigPage();
 /* carrega o histórico já na abertura do painel, antes de qualquer importação */
 histLoad();
 
-/* restaura a base completa salva localmente (se houver), para não exigir
-   reanexar o XLS a cada vez que a página é recarregada. Se este navegador nunca
-   importou nada, busca a última base publicada no GitHub — assim qualquer pessoa
-   que abrir o link vê a mesma base, sem precisar importar o XLS nela mesma. */
-if(loadLocalSnapshot()){
-  bootApp();
-}else{
-  loadBaseFromGithub().then(ok=>{ if(ok) bootApp(); });
-}
-
 /* registra a importação atual e roda a comparação com a anterior */
 async function registrarImportacao(){
   await histLoad();
@@ -1257,6 +1247,16 @@ async function loadBaseFromGithub(){
     document.getElementById("metaFile").textContent=data.fileName||"Base compartilhada";
     return true;
   }catch(e){ console.warn("loadBaseFromGithub:", e.message); return false; }
+}
+
+/* restaura a base completa salva localmente (se houver), para não exigir
+   reanexar o XLS a cada vez que a página é recarregada. Se este navegador nunca
+   importou nada, busca a última base publicada no GitHub — assim qualquer pessoa
+   que abrir o link vê a mesma base, sem precisar importar o XLS nela mesma. */
+if(loadLocalSnapshot()){
+  bootApp();
+}else{
+  loadBaseFromGithub().then(ok=>{ if(ok) bootApp(); });
 }
 
 /* ============================================================
