@@ -60,7 +60,7 @@ button{font-family:inherit;cursor:pointer}
   font-weight:700;border:1px solid var(--border-2);background:var(--bg2);color:var(--text2);margin-right:10px;white-space:nowrap}
 .syncpill.ok{color:var(--green-dk);border-color:var(--green)}
 .syncpill.empty{color:#5b8cff;border-color:#5b8cff}
-.syncpill.pr{color:#caa23c;border-color:#caa23c}
+.syncpill.ghdirect{color:#caa23c;border-color:#caa23c}
 .syncpill.err{color:var(--red-dk);border-color:var(--red)}
 .card-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;box-shadow:var(--sh)}
 .card-box label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
@@ -474,10 +474,10 @@ tbody tr:last-child td{border-bottom:none}
     <!-- CONFIGURAÇÃO -->
     <div class="page" id="pg-config">
       <div class="page-head"><h2><i class="ti ti-settings"></i> Configuração</h2>
-        <p>Sincronização com a nuvem (JSONBin) e fallback automático via Pull Request no GitHub quando o histórico fica grande demais para o plano grátis.</p></div>
+        <p>Sincronização com a nuvem (JSONBin) e fallback automático direto no GitHub quando o histórico fica grande demais para o plano grátis.</p></div>
 
       <div class="insight" id="cfgInfo">
-        <p><b>Sincronização automática com fallback para o GitHub:</b> a cada importação, o painel tenta publicar o histórico completo direto na nuvem (JSONBin). Quando cabe no limite do plano grátis (~100KB), todo mundo vê na hora. Quando o histórico fica grande demais: o painel cria uma branch com os dados completos e abre um <b>Pull Request</b> automático — isso dispara notificação no GitHub para quem tem acesso revisar e mesclar. Sem Token do GitHub configurado, o painel só avisa que não conseguiu sincronizar; ele nunca perde os dados desta sessão.</p>
+        <p><b>Sincronização automática com fallback para o GitHub:</b> a cada importação, o painel tenta publicar o histórico completo direto na nuvem (JSONBin). Quando cabe no limite do plano grátis (~100KB), todo mundo vê na hora. Quando o histórico fica grande demais: o painel grava o arquivo direto na branch principal do GitHub, sem criar branch nem Pull Request. Sem Token do GitHub configurado, o painel só avisa que não conseguiu sincronizar; ele nunca perde os dados desta sessão.</p>
       </div>
 
       <div class="card-box" style="margin-bottom:16px">
@@ -531,7 +531,7 @@ tbody tr:last-child td{border-bottom:none}
           <ul class="muted" style="padding-left:18px;line-height:1.7">
             <li><b style="color:var(--green)">Sincronizado</b> — dados gravados direto na nuvem.</li>
             <li><b style="color:var(--blue,#5b8cff)">Conectado · nuvem vazia</b> — conexão ok, nenhuma importação registrada ainda.</li>
-            <li><b style="color:#caa23c">Publicado via PR</b> — histórico grande demais para o JSONBin; um Pull Request foi aberto no GitHub aguardando revisão/merge.</li>
+            <li><b style="color:#caa23c">Publicado direto no GitHub</b> — histórico grande demais para o JSONBin; o arquivo foi gravado direto na branch principal do repositório.</li>
             <li><b style="color:var(--red)">Erro de sync</b> — não foi possível gravar em nenhum dos dois destinos.</li>
             <li><b class="muted">Sem config</b> — Master Key/Bin ID não configurados.</li>
           </ul>
@@ -612,7 +612,7 @@ function setCfg(patch){
 const HIST_FIELD = "entregaFutura"; // namespace dentro do bin
 let HIST = { semanas: [], ultimoDetalhe: null, meses: {} }; // semanas=agregados leves; ultimoDetalhe=snapshot p/ comparar; meses=agregado por AAAA-MM
 let COMP = null; // resultado da comparação com a semana anterior
-let SYNC = { status: "noconfig", lastPrUrl: null }; // status: noconfig | ok | empty | pr | err
+let SYNC = { status: "noconfig" }; // status: noconfig | ok | empty | ghdirect | err
 
 /* ---------- REGISTRO DE COBRANÇAS (auditoria do que já foi cobrado) ---------- */
 // mapa: chave do item -> { d: "AAAA-MM-DD" (1ª cobrança), u: "AAAA-MM-DD" (última), n: nº de vezes, obs: "" }
@@ -842,10 +842,10 @@ async function histSave(){
       if(res.ok){ setSync("ok"); return true; }
     }catch(e){ console.warn("histSave:", e.message); }
   }
-  // não coube no JSONBin (ou falhou) — fallback: publica via Pull Request no GitHub
+  // não coube no JSONBin (ou falhou) — fallback: publica direto no GitHub (commit em main, sem PR)
   if(cfg.ghToken && cfg.ghRepo){
-    const r = await publishViaGithubPR(full);
-    setSync(r.ok ? "pr" : "err");
+    const r = await publishHistToGithub(full);
+    setSync(r.ok ? "ghdirect" : "err");
     if(!r.ok) toast("Falha ao sincronizar com o GitHub: "+r.msg);
     return r.ok;
   }
@@ -853,48 +853,31 @@ async function histSave(){
   return false;
 }
 
-/* fallback: cria branch + commita data/historico.json + abre PR (notifica quem tem acesso ao repo) */
-async function publishViaGithubPR(payload){
+/* fallback: commita data/historico.json direto na main (sem branch/PR) */
+async function publishHistToGithub(payload){
   const cfg = getCfg();
   const api = `https://api.github.com/repos/${cfg.ghRepo}`;
   const headers = {"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
   try{
-    const refRes = await fetch(`${api}/git/ref/heads/main`,{headers});
-    if(!refRes.ok) throw new Error("não consegui ler a branch main (HTTP "+refRes.status+")");
-    const baseSha = (await refRes.json()).object.sha;
-
-    const branch = `historico-update-${Date.now()}`;
-    const createRef = await fetch(`${api}/git/refs`,{method:"POST",headers,
-      body:JSON.stringify({ref:`refs/heads/${branch}`,sha:baseSha})});
-    if(!createRef.ok){
-      const dica = createRef.status===403
-        ? " — o token não tem permissão de escrita. Gere um novo PAT fine-grained com \"Contents: Read and write\" e \"Pull requests: Read and write\" marcados (o teste de conexão só confere se você tem acesso ao repo, não se o token tem essas permissões)."
-        : "";
-      throw new Error("não consegui criar a branch (HTTP "+createRef.status+")"+dica);
-    }
-
     let sha;
     const existing = await fetch(`${api}/contents/data/historico.json?ref=main`,{headers});
     if(existing.ok) sha = (await existing.json()).sha;
+    else if(existing.status!==404) throw new Error("não consegui ler o arquivo atual (HTTP "+existing.status+")");
 
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
     const putRes = await fetch(`${api}/contents/data/historico.json`,{method:"PUT",headers,
       body:JSON.stringify({
         message:"Atualiza histórico do Entrega Futura (publicado automaticamente)",
-        content, branch, ...(sha?{sha}:{})
+        content, branch:"main", ...(sha?{sha}:{})
       })});
-    if(!putRes.ok) throw new Error("não consegui gravar o arquivo (HTTP "+putRes.status+")");
-
-    const prRes = await fetch(`${api}/pulls`,{method:"POST",headers,
-      body:JSON.stringify({
-        title:"Atualização automática do histórico — Entrega Futura",
-        head:branch, base:"main",
-        body:"Histórico grande demais para o plano grátis do JSONBin. Publicado automaticamente; revise e mescle para atualizar a base compartilhada."
-      })});
-    if(!prRes.ok) throw new Error("não consegui abrir o PR (HTTP "+prRes.status+")");
-    SYNC.lastPrUrl = (await prRes.json()).html_url;
+    if(!putRes.ok){
+      const dica = putRes.status===403
+        ? " — o token não tem permissão de escrita. Gere um novo PAT fine-grained com \"Contents: Read and write\" marcado (o teste de conexão só confere se você tem acesso ao repo, não se o token tem essa permissão)."
+        : "";
+      throw new Error("não consegui gravar o arquivo (HTTP "+putRes.status+")"+dica);
+    }
     return {ok:true};
-  }catch(e){ console.warn("publishViaGithubPR:", e.message); return {ok:false, msg:e.message}; }
+  }catch(e){ console.warn("publishHistToGithub:", e.message); return {ok:false, msg:e.message}; }
 }
 
 function setSync(status){
@@ -904,7 +887,7 @@ function setSync(status){
   const MAP = {
     ok:["ok","ti-cloud-check","Sincronizado"],
     empty:["empty","ti-cloud","Conectado · nuvem vazia"],
-    pr:["pr","ti-git-pull-request","Publicado via PR"],
+    ghdirect:["ghdirect","ti-brand-github","Publicado no GitHub"],
     err:["err","ti-cloud-x","Erro de sync"],
     noconfig:["","ti-cloud-off","Sem config"]
   };
@@ -924,7 +907,7 @@ function renderConfigStatus(){
   const LABEL = {
     ok:["Sincronizado","var(--green-dk)","Os dados estão gravados direto na nuvem (JSONBin)."],
     empty:["Conectado · nuvem vazia","#5b8cff","Conexão ok, mas nenhuma importação foi registrada ainda."],
-    pr:["Publicado via PR","#caa23c",`Histórico grande demais para o JSONBin. Um Pull Request foi aberto no GitHub${SYNC.lastPrUrl?` — <a href="${SYNC.lastPrUrl}" target="_blank">ver PR</a>`:""}.`],
+    ghdirect:["Publicado no GitHub","#caa23c","Histórico grande demais para o JSONBin. Os dados foram gravados direto na branch principal do repositório."],
     err:["Erro de sync","var(--red-dk)","Não foi possível gravar nem no JSONBin nem no GitHub. Os dados desta sessão continuam intactos."],
     noconfig:["Sem config","var(--text3)","Configure a Master Key e o Bin ID para habilitar a sincronização."]
   };
