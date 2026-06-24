@@ -354,6 +354,9 @@ tbody tr:last-child td{border-bottom:none}
       <div class="section-title">Histórico de importações</div>
       <div id="histStatus" class="note" style="margin-bottom:14px"></div>
       <div class="tablewrap full"><table id="tblHist"></table></div>
+      <div class="section-title">Pendência por Ano/Mês de emissão</div>
+      <div class="filterbar" id="fbMeses"></div>
+      <div class="tablewrap full"><table id="tblMeses"></table></div>
       <div class="section-title">O que foi entregue desde a última importação</div>
       <div class="filterbar" id="fbEntregues"></div>
       <div class="tablewrap"><table id="tblEntregues"></table></div>
@@ -495,11 +498,11 @@ const EMAILS_PESSOAS = {}; // ex: "JOÃO VITOR":"joao.vitor@agroquima.com.br"
 let RECORDS = [];
 let dataRef = new Date();
 
-/* ---------- HISTÓRICO / JSONBin (mesma conta do painel de Vencidos) ---------- */
-const JSONBIN_BIN = "6a25aba8da38895dfe95c414";
+/* ---------- HISTÓRICO / JSONBin (bin dedicado deste painel) ---------- */
+const JSONBIN_BIN = "6a3b3105da38895dfef4d61b";
 const JSONBIN_KEY = "$2a$10$NhmXfS0QZiXUxosdImwfGuw6SSpu/ofmat/2kSNj9YKW8I4beCIpq";
-const HIST_FIELD = "entregaFutura"; // namespace dentro do bin (separado dos Vencidos)
-let HIST = { semanas: [], ultimoDetalhe: null }; // semanas=agregados leves; ultimoDetalhe=snapshot p/ comparar
+const HIST_FIELD = "entregaFutura"; // namespace dentro do bin
+let HIST = { semanas: [], ultimoDetalhe: null, meses: {} }; // semanas=agregados leves; ultimoDetalhe=snapshot p/ comparar; meses=agregado por AAAA-MM
 let COMP = null; // resultado da comparação com a semana anterior
 
 /* ---------- REGISTRO DE COBRANÇAS (auditoria do que já foi cobrado) ---------- */
@@ -534,6 +537,22 @@ function snapshotAgregado(recs){
     vRetido: +recs.reduce((s,r)=>s+r.valorRetido,0).toFixed(2),
     porFilial: a
   };
+}
+/* agregado leve por mês de emissão (AAAA-MM) — alimenta a pesquisa por Ano/Mês */
+function snapshotPorMes(recs, atualizadoEm){
+  const m = {};
+  recs.forEach(r => {
+    if(!r.emissao) return;
+    const ym = r.emissao.toISOString().slice(0,7); // "AAAA-MM"
+    (m[ym] = m[ym] || {itens:0,atrasados:0,vParado:0,vEntregar:0,vRetido:0});
+    m[ym].itens++; m[ym].vParado+=r.valorParado; m[ym].vEntregar+=r.valorEntregar; m[ym].vRetido+=r.valorRetido;
+    if(r.atrasado) m[ym].atrasados++;
+  });
+  Object.keys(m).forEach(ym=>{
+    m[ym].vParado=+m[ym].vParado.toFixed(2); m[ym].vEntregar=+m[ym].vEntregar.toFixed(2); m[ym].vRetido=+m[ym].vRetido.toFixed(2);
+    m[ym].atualizadoEm = atualizadoEm;
+  });
+  return m;
 }
 
 const fmtBRL = v => "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -682,6 +701,7 @@ async function histLoad(){
     if(node){
       HIST.semanas = Array.isArray(node.semanas) ? node.semanas : [];
       HIST.ultimoDetalhe = node.ultimoDetalhe || null;
+      HIST.meses = node.meses || {};
       COBR = node.cobrancas || {};
       if(typeof node.diasReincidencia === "number") DIAS_REINCIDENCIA = node.diasReincidencia;
     }
@@ -691,14 +711,7 @@ async function histLoad(){
 
 async function histSave(){
   try{
-    // ler o bin inteiro p/ não apagar o namespace dos Vencidos
-    let full = {};
-    try{
-      const r = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`, {
-        headers:{"X-Master-Key":JSONBIN_KEY,"X-Bin-Meta":"false"}});
-      if(r.ok) full = await r.json() || {};
-    }catch(_){}
-    full[HIST_FIELD] = { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA };
+    const full = { [HIST_FIELD]: { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
     const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}`, {
       method:"PUT",
       headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_KEY},
@@ -707,6 +720,9 @@ async function histSave(){
     return res.ok;
   }catch(e){ console.warn("histSave:", e.message); return false; }
 }
+
+/* carrega o histórico já na abertura do painel, antes de qualquer importação */
+histLoad();
 
 /* registra a importação atual e roda a comparação com a anterior */
 async function registrarImportacao(){
@@ -731,6 +747,9 @@ async function registrarImportacao(){
 
   // guarda o detalhe atual como "último" para a próxima comparação
   HIST.ultimoDetalhe = { data: hoje, itens: detAtual };
+
+  // upsert do agregado por mês de emissão (permite pesquisar pendência por Ano/Mês)
+  HIST.meses = { ...HIST.meses, ...snapshotPorMes(RECORDS, hoje) };
 
   const ok = await histSave();
   // o COBR já foi carregado no histLoad — recalcula status e atualiza as telas
@@ -956,6 +975,9 @@ function uniq(key){return [...new Set(RECORDS.map(r=>r[key]).filter(Boolean))].s
 function buildFilters(){
   const filiais=uniq("sigla"), auditores=uniq("auditor"), regionais=uniq("regional"), linhas=uniq("linha");
   const filialOpts=filiais.map(s=>`<option value="${s}">${s} — ${esc((BASE[s]||{}).loja||s)}</option>`).join("");
+  const meses=Array.from(new Set(RECORDS.filter(r=>r.emissao).map(r=>r.emissao.toISOString().slice(0,7)))).sort().reverse();
+  const MESES_PT=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  const mesOpts=meses.map(ym=>{const [a,m]=ym.split("-");return `<option value="${ym}">${MESES_PT[+m-1]}/${a}</option>`;}).join("");
   function bar(id){
     document.getElementById(id).innerHTML=`
       <div class="grp"><label>Buscar</label><input type="text" data-f="busca" placeholder="cliente, produto, pedido, cidade…"></div>
@@ -963,6 +985,7 @@ function buildFilters(){
       <div class="grp"><label>Auditor</label><select data-f="auditor"><option value="">Todos</option>${auditores.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
       <div class="grp"><label>Regional</label><select data-f="regional"><option value="">Todos</option>${regionais.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
       <div class="grp"><label>Linha</label><select data-f="linha"><option value="">Todas</option>${linhas.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
+      <div class="grp"><label>Ano/Mês emissão</label><select data-f="mes"><option value="">Todos</option>${mesOpts}</select></div>
       <button class="chip" data-f="soatr"><i class="ti ti-alarm"></i> Só atrasados</button>
       <div class="spacer"></div>
       <button class="btn-clear" data-clear="1"><i class="ti ti-filter-off"></i> Limpar filtros</button>`;
@@ -1008,6 +1031,7 @@ function applyFilter(rows,f){
     if(f.auditor && r.auditor!==f.auditor) return false;
     if(f.regional && r.regional!==f.regional) return false;
     if(f.linha && r.linha!==f.linha) return false;
+    if(f.mes && (!r.emissao || r.emissao.toISOString().slice(0,7)!==f.mes)) return false;
     if(f.soatr && !r.atrasado) return false;
     if(f.busca){const q=f.busca.toLowerCase();
       if(!(`${r.cliente} ${r.produto} ${r.pedido} ${r.cidade} ${r.vendedor} ${r.codProd}`).toLowerCase().includes(q)) return false;}
@@ -1438,6 +1462,36 @@ function renderEvolucao(saveOk,loading){
       <td class="money" style="color:var(--red-dk)">${fmtBRL(s.vRetido)}</td><td class="num">${dt}</td></tr>`;});
   document.getElementById("tblHist").innerHTML=h+"</tbody>";
   renderEntregues();
+  renderMeses();
+}
+/* pendência por Ano/Mês — vem do HIST.meses salvo na nuvem (leve, independe do tamanho do XLS) */
+function renderMeses(){
+  const box=document.getElementById("fbMeses");
+  if(box && !box.dataset.built){
+    box.dataset.built="1";
+    box.innerHTML=`<div class="grp"><label>Buscar Ano/Mês</label><input type="text" id="mesBusca" placeholder="ex.: 2024-03 ou 03/2024"></div>
+      <div class="spacer"></div>
+      <button class="btn-clear" id="mesClear"><i class="ti ti-filter-off"></i> Limpar</button>`;
+    document.getElementById("mesBusca").oninput=renderMeses;
+    document.getElementById("mesClear").onclick=()=>{document.getElementById("mesBusca").value="";renderMeses();};
+  }
+  const q=(document.getElementById("mesBusca")?.value||"").trim().toLowerCase();
+  const MESES_PT=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  let ym=Object.entries(HIST.meses||{}).sort((a,b)=>b[0]<a[0]?1:-1).reverse();
+  if(q) ym=ym.filter(([k])=>k.toLowerCase().includes(q) || `${MESES_PT[+k.slice(5,7)-1]}/${k.slice(0,4)}`.includes(q));
+  let h=`<thead><tr><th>Ano/Mês</th><th class="num">Itens</th><th class="num">Atrasados</th>
+    <th class="money">Parado</th><th class="money">A entregar</th><th class="money">Retido</th><th>Atualizado em</th></tr></thead><tbody>`;
+  if(!ym.length) h+=`<tr><td colspan="7"><div class="empty"><i class="ti ti-calendar-search"></i>Nenhum mês encontrado.</div></td></tr>`;
+  ym.forEach(([k,v])=>{
+    const [a,m]=k.split("-");
+    h+=`<tr><td class="strong">${MESES_PT[+m-1]}/${a}</td><td class="num">${fmtINT(v.itens)}</td>
+      <td class="num" style="color:${v.atrasados?'var(--red)':'var(--text3)'}">${fmtINT(v.atrasados)}</td>
+      <td class="money">${fmtBRL(v.vParado)}</td>
+      <td class="money" style="color:var(--green-dk)">${fmtBRL(v.vEntregar)}</td>
+      <td class="money" style="color:var(--red-dk)">${fmtBRL(v.vRetido)}</td>
+      <td class="muted">${fmtDATE(new Date(v.atualizadoEm))}</td></tr>`;
+  });
+  document.getElementById("tblMeses").innerHTML=h+"</tbody>";
 }
 function renderEntregues(){
   const box=document.getElementById("fbEntregues");
