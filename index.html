@@ -627,7 +627,8 @@ tbody tr:last-child td{border-bottom:none}
       <div class="field"><label>Mensagem</label><textarea id="mBody"></textarea></div>
     </div>
     <footer>
-      <div style="flex:1;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px"><i class="ti ti-info-circle"></i> Gerar o e-mail/PDF ou copiar marca os itens desta filial como cobrados.</div>
+      <div style="flex:1;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px"><i class="ti ti-info-circle"></i> Gerar o e-mail/PDF ou copiar marca como cobrados apenas os itens desta cobrança.</div>
+      <button class="btn ghost" onclick="downloadExcelCobranca()"><i class="ti ti-file-spreadsheet"></i> Baixar Excel da cobrança</button>
       <button class="btn ghost" onclick="gerarPDFFilial()"><i class="ti ti-file-type-pdf"></i> Gerar PDF da filial</button>
       <button class="btn" onclick="copyMail()"><i class="ti ti-copy"></i> Copiar texto</button>
       <button class="btn primary" onclick="openMail()"><i class="ti ti-mail"></i> Abrir no e-mail</button>
@@ -1032,6 +1033,9 @@ function wireConfigPage(){
   };
 
   $("cfgCreateBin").onclick = async () => {
+    const senha = prompt("Ação sensível: criar um novo Bin na nuvem.\nDigite a senha para confirmar:");
+    if(senha===null) return;
+    if(senha!=="1234"){ showResult(false,"Senha incorreta. Bin não foi criado."); return; }
     const key = $("cfgJsonbinKey").value.trim();
     if(!key){ showResult(false,"Informe a Master Key antes de criar o bin."); return; }
     try{
@@ -1626,7 +1630,7 @@ function renderPager(tblId,total){
 }
 function detailTable(tblId,rows){
   const cols=[
-    {k:"_mail",t:"",sort:false,render:r=>`<button class="btn-cobrar" onclick='openMailFor("${r.sigla}")'><i class="ti ti-mail"></i> Cobrar</button>`},
+    {k:"_mail",t:"",sort:false,render:r=>`<button class="btn-cobrar" onclick='cobrarFiltrado("${tblId}","${r.sigla}")'><i class="ti ti-mail"></i> Cobrar</button>`},
     {k:"_audit",t:"Cobrança",sort:false,render:r=>`${markButton(r)}${r.audit&&r.audit.st!=="nao"?`<div class="cobr-info">${r.audit.st==="reincidente"?'<b style="color:var(--red)">reincidente</b>':'aguardando'} · ${r.audit.dias}d</div>`:''}`},
     {k:"status",t:"Status",render:r=>pill(r.status)},
     {k:"dias",t:"Dias pendente",num:true,render:r=>r.atrasado?`<span class="tag-atr">${r.dias}d</span>`:`<span class="tag-ok">${r.dias}d</span>`},
@@ -1669,6 +1673,15 @@ function detailTable(tblId,rows){
   renderPager(tblId,total);
 }
 function doSort(tblId,k){const s=sortState[tblId];sortState[tblId]=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};pageState[tblId]=1;rerender();}
+
+const FILTERBAR_BY_TBL={tblCobrar:"fbCobrar",tblRetidos:"fbRetidos",tblBase:"fbBase"};
+function cobrarFiltrado(tblId, sigla){
+  const fbId=FILTERBAR_BY_TBL[tblId];
+  const f=fbId?readFilter(fbId):null;
+  let itens=RECORDS.filter(r=>r.sigla===sigla && r.status!=="ret");
+  if(f) itens=applyFilter(itens,f);
+  openMailFor(sigla, itens);
+}
 
 function renderCobrar(){
   const f=readFilter("fbCobrar");
@@ -1820,6 +1833,13 @@ function renderConsulta(){
    RECORRÊNCIA — linhas expansíveis (clique mostra os pedidos)
    ============================================================ */
 let recorOpen={};
+let RECOR_GROUPS={};
+function cobrarCliente(k){
+  const g=RECOR_GROUPS[k];
+  if(!g){ toast("Cliente não encontrado nesta lista."); return; }
+  const itens=g.itens.filter(r=>r.status!=="ret");
+  openMailFor(g.sigla, itens, {cliente:g.cliente});
+}
 function renderRecor(){
   const f=readFilter("fbRecor");
   const grp={};
@@ -1841,6 +1861,7 @@ function renderRecor(){
       if(typeof x==="string"){x=x.toLowerCase();y=(y||"").toLowerCase();}
       if(x<y)return stR.dir; if(x>y)return -stR.dir; return 0;});
   } else rows.sort((a,b)=>(b.ent+b.ret)-(a.ent+a.ret));
+  RECOR_GROUPS={}; rows.forEach(g=>{RECOR_GROUPS[g.k]=g;});
   const recorCols=[{k:"",t:"",sort:false},{k:"cliente",t:"Cliente"},{k:"sigla",t:"Filial"},{k:"n",t:"Itens",num:true},
     {k:"atr",t:"Atrasados",num:true},{k:"peds",t:"Pedidos",num:true},{k:"ent",t:"A entregar",num:true},
     {k:"ret",t:"Retido",num:true},{k:"",t:"",sort:false}];
@@ -1863,7 +1884,7 @@ function renderRecor(){
       <td class="num muted">${g.peds.size}</td>
       <td class="money" style="color:var(--green-dk)">${fmtBRL(g.ent)}</td>
       <td class="money" style="color:var(--red-dk)">${fmtBRL(g.ret)}</td>
-      <td><button class="btn-cobrar" onclick='event.stopPropagation();openMailFor("${g.sigla}")'><i class="ti ti-mail"></i> Cobrar</button></td></tr>`;
+      <td><button class="btn-cobrar" onclick='event.stopPropagation();cobrarCliente("${g.k.replace(/'/g,"\\'")}")'><i class="ti ti-mail"></i> Cobrar</button></td></tr>`;
     if(open){
       const its=g.itens.slice().sort((a,b)=>b.valorParado-a.valorParado);
       let inner=`<table><thead><tr><th>Status</th><th>Pedido</th><th>Produto</th><th>Cód. produto</th><th class="num">Dias</th><th class="num">Saldo</th><th class="money">Vlr parado</th><th class="money">Entregar</th><th class="money">Retido</th></tr></thead><tbody>`;
@@ -2259,21 +2280,31 @@ function renderEntregues(){
    MODAL DE E-MAIL — auditor responsável = o da base (corrigido)
    ============================================================ */
 let mailSigla=null;
-function openMailFor(sigla){
+let MAIL_ITENS=[];
+let MAIL_CLIENTE=null;
+function openMailFor(sigla, itensOverride, opts){
   mailSigla=sigla;
+  opts=opts||{};
+  MAIL_CLIENTE=opts.cliente||null;
   const b=BASE[sigla]||{};
-  let itens=RECORDS.filter(r=>r.sigla===sigla);
-  const filtroLinha = ULT_FILTRO_LINHA.length ? ULT_FILTRO_LINHA : null;
-  if(filtroLinha) itens=itens.filter(r=>filtroLinha.includes(r.linha));
-  const ct=itens.filter(r=>r.status==="total"); // título quitado -> entrega integral
-  const cp=itens.filter(r=>r.status==="parc");  // só a parte já paga -> especificar qtd/valor
-  const cobrar=[...ct,...cp];
-  const retidos=itens.filter(r=>r.status==="ret");
+  let itens;
+  if(itensOverride){
+    itens=itensOverride;
+  }else{
+    itens=RECORDS.filter(r=>r.sigla===sigla);
+    if(ULT_FILTRO_LINHA.length) itens=itens.filter(r=>ULT_FILTRO_LINHA.includes(r.linha));
+  }
+  const cobrar=itens.filter(r=>r.status!=="ret");
+  MAIL_ITENS=cobrar;
   const vEnt=cobrar.reduce((s,r)=>s+r.valorEntregar,0);
-  const vRet=retidos.reduce((s,r)=>s+r.valorRetido,0);
-  const atr=itens.filter(r=>r.atrasado).length;
+  const atr=cobrar.filter(r=>r.atrasado).length;
+  const escopoTxt = MAIL_CLIENTE?`cliente ${MAIL_CLIENTE}`:"seleção filtrada nesta tela";
 
-  document.getElementById("mFilial").textContent=`${sigla} · ${b.loja||""}${filtroLinha?` · linha(s): ${filtroLinha.join(", ")}`:""}`;
+  if(!cobrar.length){
+    toast("Nenhum item liberado para cobrança nesta seleção.");
+  }
+
+  document.getElementById("mFilial").textContent=`${sigla} · ${b.loja||""}${MAIL_CLIENTE?` · cliente: ${MAIL_CLIENTE}`:""}`;
 
   // Destinatários: diretoria fixa + os responsáveis REAIS da filial (da base).
   // João Vitor entra como REMETENTE (auditoria), não como "auditor da filial".
@@ -2285,45 +2316,53 @@ function openMailFor(sigla){
   recipsHtml += `<span class="r sender">Remetente: <b>Auditoria (João Vitor)</b></span>`;
   document.getElementById("mRecips").innerHTML=recipsHtml;
 
-  document.getElementById("mSubject").value=`[Entrega Futura] Cobrança de entrega — ${b.loja||sigla} (${sigla}) — ${fmtDATE(dataRef)}`;
-
-  // título quitado: entrega integral do item, sem detalhar qtd/valor (é o saldo todo)
-  let linhasTotal=ct.slice().sort((a,b)=>b.valorEntregar-a.valorEntregar).slice(0,8)
-    .map(r=>`  • Pedido ${r.pedido} [${r.codProd}] — ${r.cliente}: entregar TOTAL — ${fmtINT(r.qtdEntregar)} un (${fmtBRL(r.valorEntregar)})${r.atrasado?` — atrasado ${r.dias}d`:""}`).join("\n");
-  if(ct.length>8) linhasTotal+=`\n  • … e mais ${ct.length-8} itens com título quitado (ver PDF anexo).`;
-  if(!ct.length) linhasTotal="  (nenhum item com título totalmente quitado nesta seleção)";
-
-  // título parcial: só a parte paga pode ser entregue — especifica qtd/valor a entregar e o que continua retido
-  let linhasParcial=cp.slice().sort((a,b)=>b.valorEntregar-a.valorEntregar).slice(0,8)
-    .map(r=>`  • Pedido ${r.pedido} [${r.codProd}] — ${r.cliente}: entregar APENAS ${fmtINT(r.qtdEntregar)} un (${fmtBRL(r.valorEntregar)}) — saldo de ${fmtINT(r.saldo)} un permanece retido (${fmtBRL(r.valorRetido)})${r.atrasado?` — atrasado ${r.dias}d`:""}`).join("\n");
-  if(cp.length>8) linhasParcial+=`\n  • … e mais ${cp.length-8} itens com pagamento parcial (ver PDF anexo).`;
-  if(!cp.length) linhasParcial="  (nenhum item com pagamento parcial nesta seleção)";
+  document.getElementById("mSubject").value=`[Entrega Futura] Cobrança de entrega — ${b.loja||sigla} (${sigla})${MAIL_CLIENTE?` — ${MAIL_CLIENTE}`:""} — ${fmtDATE(dataRef)}`;
 
   document.getElementById("mBody").value=
 `Prezados,
 
-Entrega futura da filial ${b.loja||sigla} (${sigla}) — posição de ${fmtDATE(dataRef)}.${filtroLinha?`\nLinha(s) selecionada(s) para esta cobrança: ${filtroLinha.join(", ")}.`:""}
+Resumo da cobrança de entrega futura — ${escopoTxt} — filial ${b.loja||sigla} (${sigla}) — posição de ${fmtDATE(dataRef)}.
 
-A liberar para entrega (já pago): ${fmtBRL(vEnt)} em ${fmtINT(cobrar.length)} itens${atr?`  ·  ${fmtINT(atr)} atrasados`:""}
-Retido (cliente ainda deve): ${fmtBRL(vRet)} em ${fmtINT(retidos.length)} itens
+Itens a entregar (já pago, sem valor retido): ${fmtINT(cobrar.length)}
+Valor total a entregar: ${fmtBRL(vEnt)}${atr?`\nItens atrasados: ${fmtINT(atr)}`:""}
 
-Itens com título quitado — entrega TOTAL:
-${linhasTotal}
+Detalhamento completo (pedido, quantidade, dias pendentes e valor a entregar) no Excel anexo.
 
-Itens com pagamento PARCIAL — entregar apenas a quantidade/valor já pago, o restante continua retido:
-${linhasParcial}
-
-Solicito ao auditor responsável (${b.auditor||"—"}) e ao gerente regional (${b.regional||"—"}) que cobrem o gerente (${b.gerente||"—"}) e o supervisor (${b.supervisor||"—"}) a efetivação destas entregas, retornando o que for entregue até a próxima emissão. Detalhe completo no PDF anexo.
-
-Regra: entrega-se apenas o que está pago; o saldo devedor permanece retido (no desacordo, devolução da entrega futura).
+Solicito ao auditor responsável (${b.auditor||"—"}) e ao gerente regional (${b.regional||"—"}) que cobrem o gerente (${b.gerente||"—"}) e o supervisor (${b.supervisor||"—"}) a efetivação destas entregas, retornando o que for entregue até a próxima emissão.
 
 Auditoria — Agroquima`;
 
   document.getElementById("mEmailNote").style.display="block";
   document.getElementById("mEmailNote").innerHTML=
-    `Diretoria, auditor responsável, gerente regional e supervisor da loja (<b>${esc(b.emailSupervisor||"sem e-mail cadastrado")}</b>) serão preenchidos automaticamente. Adicione manualmente o e-mail do gerente da loja (<b>${esc(b.gerente||"—")}</b>) antes de enviar.${filtroLinha?` E-mail restrito às linhas selecionadas no filtro: <b>${esc(filtroLinha.join(", "))}</b>.`:""}`;
+    `Diretoria, auditor responsável, gerente regional e supervisor da loja (<b>${esc(b.emailSupervisor||"sem e-mail cadastrado")}</b>) serão preenchidos automaticamente. Adicione manualmente o e-mail do gerente da loja (<b>${esc(b.gerente||"—")}</b>) antes de enviar. Esta cobrança refere-se apenas a ${escopoTxt} (${fmtINT(cobrar.length)} itens) — baixe o Excel para o detalhe.`;
 
   document.getElementById("modal").classList.add("on");
+}
+function marcarItens(itens, silencioso){
+  const hoje=new Date().toISOString().slice(0,10);
+  let n=0;
+  (itens||[]).forEach(r=>{
+    const k=itemKey(r), c=COBR[k];
+    if(c){ c.u=hoje; c.n=(c.n||1)+1; } else { COBR[k]={d:hoje,u:hoje,n:1,obs:""}; }
+    n++;
+  });
+  calcularAuditoria();
+  if(!silencioso){ saveCobrLocal(); refreshAll(); toast(`${n} itens marcados como cobrados.`); }
+  return n;
+}
+function downloadExcelCobranca(){
+  if(!MAIL_ITENS.length){ toast("Nenhum item para exportar."); return; }
+  const data=MAIL_ITENS.map(r=>({
+    "Pedido": r.pedido,
+    "Quantidade": r.qtdEntregar,
+    "Dias Pendentes": r.dias,
+    "Valor a Entregar": r.valorEntregar
+  }));
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Cobranca");
+  const nome=`cobranca_${mailSigla}${MAIL_CLIENTE?"_"+MAIL_CLIENTE.replace(/[^a-zA-Z0-9]+/g,"_"):""}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, nome);
 }
 function openMail(){
   const b=BASE[mailSigla]||{};
@@ -2336,12 +2375,12 @@ function openMail(){
   // mailto: é o padrão suportado tanto pelo Outlook 2010 quanto pelo Outlook do Office 365
   // (modelo clássico, conta padrão IMAP/SMTP) — abre o cliente de e-mail já configurado no Windows.
   window.location.href=`mailto:${dests.join(",")}?subject=${subject}&body=${body}`;
-  marcarFilial(mailSigla);
+  marcarItens(MAIL_ITENS);
 }
 function copyMail(){
   const txt="Assunto: "+document.getElementById("mSubject").value+"\n\n"+document.getElementById("mBody").value;
   navigator.clipboard.writeText(txt).then(()=>toast("Texto copiado — itens marcados como cobrados."),()=>toast("Não foi possível copiar."));
-  marcarFilial(mailSigla, true); calcularAuditoria(); saveCobrLocal(); refreshAll();
+  marcarItens(MAIL_ITENS, true); calcularAuditoria(); saveCobrLocal(); refreshAll();
 }
 function closeModal(){document.getElementById("modal").classList.remove("on");}
 document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal();});
