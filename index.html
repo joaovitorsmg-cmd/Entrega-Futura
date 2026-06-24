@@ -1090,11 +1090,11 @@ function compararSnapshots(antItens, atualDet, dataAnt){
 /* ============================================================
    AUDITORIA DE COBRANÇA — o que já foi cobrado x o que não foi
    ============================================================ */
-// diferença em dias entre hoje (dataRef) e uma data "AAAA-MM-DD"
+// diferença em dias entre hoje (data real) e uma data "AAAA-MM-DD"
 function diasDesde(iso){
   if(!iso) return null;
   const d=new Date(iso+"T00:00:00");
-  return Math.floor((dataRef - d)/86400000);
+  return Math.floor((new Date() - d)/86400000);
 }
 // status de auditoria de cada item em aberto, cruzando COBR (registro) com o relatório atual
 function calcularAuditoria(){
