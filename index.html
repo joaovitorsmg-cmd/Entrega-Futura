@@ -140,6 +140,23 @@ button{font-family:inherit;cursor:pointer}
 .filterbar input{min-width:230px}
 .filterbar select:focus,.filterbar input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-glow)}
 .filterbar .spacer{flex:1}
+.msel{position:relative}
+.msel-btn{background:var(--bg);border:1px solid var(--border-2);color:var(--text);padding:8px 11px;
+  border-radius:var(--r-sm);font-size:13px;font-family:inherit;min-width:170px;text-align:left;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;gap:6px}
+.msel-btn:hover{border-color:var(--brand)}
+.msel.on .msel-btn{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-glow)}
+.msel-pop{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:40;background:var(--bg);
+  border:1px solid var(--border-2);border-radius:var(--r-sm);box-shadow:0 8px 24px rgba(0,0,0,.25);
+  padding:6px;min-width:260px;max-height:260px;overflow:auto}
+.msel.on .msel-pop{display:block}
+.msel-opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.msel-opt:hover{background:var(--bg2)}
+.msel-opt input{margin:0}
+.msel-opt .pr-tag{margin-left:auto;font-size:9.5px;font-weight:700;color:var(--brand);background:var(--brand-lt);
+  padding:1px 5px;border-radius:4px;letter-spacing:.3px}
+.tag-prio{display:inline-block;font-size:9.5px;font-weight:700;color:var(--brand);background:var(--brand-lt);
+  padding:1px 6px;border-radius:4px;letter-spacing:.3px;margin-left:6px;vertical-align:middle}
 .chip{padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:600;border:1px solid var(--border-2);
   background:var(--bg);color:var(--text2);transition:.15s;display:inline-flex;align-items:center;gap:5px}
 .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
@@ -1143,7 +1160,9 @@ function desmarcarItem(k){
 function marcarFilial(sigla, silencioso){
   const hoje=new Date().toISOString().slice(0,10);
   let n=0;
-  RECORDS.filter(r=>r.sigla===sigla && r.status!=="ret").forEach(r=>{
+  let rows=RECORDS.filter(r=>r.sigla===sigla && r.status!=="ret");
+  if(ULT_FILTRO_LINHA.length) rows=rows.filter(r=>ULT_FILTRO_LINHA.includes(r.linha));
+  rows.forEach(r=>{
     const k=itemKey(r), c=COBR[k];
     if(c){ c.u=hoje; c.n=(c.n||1)+1; } else { COBR[k]={d:hoje,u:hoje,n:1,obs:""}; }
     n++;
@@ -1377,11 +1396,25 @@ function renderResumo(){
   const byLine={};
   RECORDS.forEach(r=>{const k=r.linha||"(sem linha)";(byLine[k]=byLine[k]||{n:0,atr:0,ent:0,ret:0});
     byLine[k].n++;if(r.atrasado)byLine[k].atr++;byLine[k].ent+=r.valorEntregar;byLine[k].ret+=r.valorRetido;});
-  const lines=Object.entries(byLine).sort((a,b)=>b[1].ret-a[1].ret);
-  let h=`<thead><tr><th>Linha de produto</th><th class="num">Itens</th><th class="num">Atrasados</th>
-    <th class="money">A entregar</th><th class="money">Retido</th></tr></thead><tbody>`;
+  let lines=Object.entries(byLine);
+  const stL=sortState.tblLinha;
+  if(stL){
+    lines.sort((a,b)=>{const x=stL.k==="k"?a[0]:a[1][stL.k],y=stL.k==="k"?b[0]:b[1][stL.k];
+      if(typeof x==="string"){const lx=x.toLowerCase(),ly=(y||"").toLowerCase();return lx<ly?stL.dir:lx>ly?-stL.dir:0;}
+      return (x-y)*stL.dir;});
+  } else {
+    lines.sort((a,b)=> (isPriorityLine(b[0])-isPriorityLine(a[0])) || (b[1].ret-a[1].ret));
+  }
+  const linCols=[{k:"k",t:"Linha de produto"},{k:"n",t:"Itens",num:true},{k:"atr",t:"Atrasados",num:true},
+    {k:"ent",t:"A entregar",num:true},{k:"ret",t:"Retido",num:true}];
+  let h="<thead><tr>";
+  linCols.forEach(c=>{
+    const ar=stL&&stL.k===c.k?(stL.dir>0?'<i class="ti ti-caret-up-filled ar"></i>':'<i class="ti ti-caret-down-filled ar"></i>'):"";
+    h+=`<th class="${c.num?'num ':''}sortable" onclick="doSortLinha('${c.k}')">${c.t}${ar}</th>`;
+  });
+  h+="</tr></thead><tbody>";
   lines.forEach(([k,v])=>{
-    h+=`<tr><td class="strong">${esc(k)}</td><td class="num">${fmtINT(v.n)}</td>
+    h+=`<tr><td class="strong">${esc(k)}${prioTag(k)}</td><td class="num">${fmtINT(v.n)}</td>
       <td class="num" style="color:${v.atr?'var(--red)':'var(--text3)'}">${fmtINT(v.atr)}</td>
       <td class="money" style="color:var(--green-dk)">${fmtBRL(v.ent)}</td>
       <td class="money" style="color:var(--red-dk)">${fmtBRL(v.ret)}</td></tr>`;
@@ -1392,7 +1425,44 @@ function renderResumo(){
 /* ============================================================
    FILTROS (com botão Limpar em todas as abas)
    ============================================================ */
+function doSortLinha(k){const s=sortState.tblLinha;sortState.tblLinha=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderResumo();}
 function uniq(key){return [...new Set(RECORDS.map(r=>r[key]).filter(Boolean))].sort();}
+// linhas foco de cobrança — as demais são secundárias
+const PRIORITY_LINE_PREFIXES=["1-","2-","5-","18-"];
+function isPriorityLine(linha){
+  if(!linha) return false;
+  const s=String(linha).trim();
+  return PRIORITY_LINE_PREFIXES.some(p=>s.startsWith(p)||s.startsWith(p.replace("-"," -"))||s.replace(/\s+/g,"").toUpperCase().startsWith(p));
+}
+function prioTag(linha){return isPriorityLine(linha)?'<span class="tag-prio">PRIORITÁRIA</span>':'';}
+
+/* ---------- multi-select de checkbox (dropdown) ---------- */
+function multiSelectHtml(dataF,opts,label,priFn){
+  const items=opts.map(o=>{
+    const pr=priFn&&priFn(o)?'<span class="pr-tag">FOCO</span>':"";
+    return `<label class="msel-opt"><input type="checkbox" value="${esc(o)}">${esc(o)}${pr}</label>`;
+  }).join("");
+  return `<div class="grp msel" data-f="${dataF}" data-msel="1">
+    <label>${label}</label>
+    <button type="button" class="msel-btn" onclick="toggleMsel(this)"><span class="msel-lbl">Todas</span> <i class="ti ti-chevron-down"></i></button>
+    <div class="msel-pop">${items}</div>
+  </div>`;
+}
+function toggleMsel(btn){
+  const box=btn.closest(".msel");
+  document.querySelectorAll(".msel.on").forEach(m=>{if(m!==box)m.classList.remove("on");});
+  box.classList.toggle("on");
+}
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".msel")) document.querySelectorAll(".msel.on").forEach(m=>m.classList.remove("on"));
+});
+function mselValues(box){return [...box.querySelectorAll("input:checked")].map(i=>i.value);}
+let ULT_FILTRO_LINHA=[]; // última seleção de linhas usada para restringir o e-mail de cobrança
+function mselRefreshLabel(box){
+  const vals=mselValues(box), lbl=box.querySelector(".msel-lbl");
+  lbl.textContent = vals.length===0 ? "Todas" : (vals.length<=2 ? vals.join(", ") : `${vals.length} selecionadas`);
+  if(box.dataset.f==="linha") ULT_FILTRO_LINHA=vals;
+}
 function buildFilters(){
   const filiais=uniq("sigla"), auditores=uniq("auditor"), regionais=uniq("regional"), linhas=uniq("linha");
   const filialOpts=filiais.map(s=>`<option value="${s}">${s} — ${esc((BASE[s]||{}).loja||s)}</option>`).join("");
@@ -1405,9 +1475,10 @@ function buildFilters(){
       <div class="grp"><label>Filial</label><select data-f="sigla"><option value="">Todas</option>${filialOpts}</select></div>
       <div class="grp"><label>Auditor</label><select data-f="auditor"><option value="">Todos</option>${auditores.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
       <div class="grp"><label>Regional</label><select data-f="regional"><option value="">Todos</option>${regionais.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
-      <div class="grp"><label>Linha</label><select data-f="linha"><option value="">Todas</option>${linhas.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
+      ${multiSelectHtml("linha",linhas,"Linha",isPriorityLine)}
       <div class="grp"><label>Ano/Mês emissão</label><select data-f="mes"><option value="">Todos</option>${mesOpts}</select></div>
       <button class="chip" data-f="soatr"><i class="ti ti-alarm"></i> Só atrasados</button>
+      <button class="chip" data-f="soprio"><i class="ti ti-star"></i> Só linhas foco</button>
       <div class="spacer"></div>
       <button class="btn-clear" data-clear="1"><i class="ti ti-filter-off"></i> Limpar filtros</button>`;
     wireFilter(id);
@@ -1417,8 +1488,10 @@ function buildFilters(){
   document.getElementById("fbRecor").innerHTML=`
     <div class="grp"><label>Buscar cliente</label><input type="text" data-f="busca" placeholder="nome do cliente…"></div>
     <div class="grp"><label>Filial</label><select data-f="sigla"><option value="">Todas</option>${filialOpts}</select></div>
+    ${multiSelectHtml("linha",linhas,"Linha",isPriorityLine)}
     <button class="chip" data-f="so2"><i class="ti ti-stack-2"></i> 2+ itens</button>
     <button class="chip" data-f="soret"><i class="ti ti-lock"></i> Com retido</button>
+    <button class="chip" data-f="soprio"><i class="ti ti-star"></i> Só linhas foco</button>
     <div class="spacer"></div>
     <button class="btn-clear" data-clear="1"><i class="ti ti-filter-off"></i> Limpar filtros</button>`;
   wireFilter("fbRecor", renderRecor);
@@ -1427,21 +1500,28 @@ function wireFilter(id, custom){
   const box=document.getElementById(id);
   const cb = custom || rerender;
   box.querySelectorAll("[data-f]").forEach(el=>{
-    if(el.classList.contains("chip")) el.onclick=()=>{el.classList.toggle("on");cb();};
+    if(el.dataset.msel){
+      el.querySelectorAll("input[type=checkbox]").forEach(cbx=>{cbx.onchange=()=>{mselRefreshLabel(el);cb();};});
+    } else if(el.classList.contains("chip")) el.onclick=()=>{el.classList.toggle("on");cb();};
     else el.oninput=el.onchange=cb;
   });
   const clr=box.querySelector("[data-clear]");
   if(clr) clr.onclick=()=>{
-    box.querySelectorAll("input").forEach(i=>i.value="");
+    box.querySelectorAll("input[type=text]").forEach(i=>i.value="");
     box.querySelectorAll("select").forEach(s=>s.value="");
     box.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+    box.querySelectorAll("[data-msel]").forEach(el=>{
+      el.querySelectorAll("input[type=checkbox]").forEach(cbx=>cbx.checked=false);
+      mselRefreshLabel(el);
+    });
     cb();
   };
 }
 function readFilter(id){
   const box=document.getElementById(id),f={};
   box.querySelectorAll("[data-f]").forEach(el=>{
-    if(el.classList.contains("chip")) f[el.dataset.f]=el.classList.contains("on");
+    if(el.dataset.msel) f[el.dataset.f]=mselValues(el);
+    else if(el.classList.contains("chip")) f[el.dataset.f]=el.classList.contains("on");
     else f[el.dataset.f]=el.value.trim();
   });
   return f;
@@ -1451,9 +1531,10 @@ function applyFilter(rows,f){
     if(f.sigla && r.sigla!==f.sigla) return false;
     if(f.auditor && r.auditor!==f.auditor) return false;
     if(f.regional && r.regional!==f.regional) return false;
-    if(f.linha && r.linha!==f.linha) return false;
+    if(f.linha && f.linha.length && !f.linha.includes(r.linha)) return false;
     if(f.mes && (!r.emissao || r.emissao.toISOString().slice(0,7)!==f.mes)) return false;
     if(f.soatr && !r.atrasado) return false;
+    if(f.soprio && !isPriorityLine(r.linha)) return false;
     if(f.busca){const q=f.busca.toLowerCase();
       if(!(`${r.cliente} ${r.produto} ${r.pedido} ${r.cidade} ${r.vendedor} ${r.codProd}`).toLowerCase().includes(q)) return false;}
     return true;
@@ -1494,7 +1575,8 @@ function detailTable(tblId,rows){
     {k:"sigla",t:"Filial",render:r=>filialCell(r)},
     {k:"auditor",t:"Auditor",render:r=>esc(r.auditor)},
     {k:"cliente",t:"Cliente",render:r=>esc(r.cliente)},
-    {k:"produto",t:"Produto",render:r=>`${esc(r.produto)}<br><span class="muted" style="font-size:11px">${esc(r.linha)}</span>`},
+    {k:"produto",t:"Produto",render:r=>`${esc(r.produto)}${prioTag(r.linha)}<br><span class="muted" style="font-size:11px">${esc(r.linha)}</span>`},
+    {k:"codProd",t:"Cód. produto",render:r=>`<span class="muted">${esc(r.codProd)}</span>`},
     {k:"pedido",t:"Pedido",render:r=>`<span class="muted">${r.pedido}</span>`},
     {k:"emissao",t:"Emissão",num:true,render:r=>`<span class="muted">${fmtDATE(r.emissao)}</span>`},
     {k:"saldo",t:"Saldo",num:true,render:r=>fmtINT(r.saldo)},
@@ -1616,12 +1698,28 @@ function renderRecor(){
     grp[k].ent+=r.valorEntregar;grp[k].ret+=r.valorRetido;grp[k].itens.push(r);});
   let rows=Object.entries(grp).map(([k,v])=>({k,...v})).filter(g=>g.n>=2 || (g.ent+g.ret)>20000);
   if(f.sigla) rows=rows.filter(g=>g.sigla===f.sigla);
+  if(f.linha && f.linha.length) rows=rows.filter(g=>g.itens.some(r=>f.linha.includes(r.linha)));
   if(f.so2) rows=rows.filter(g=>g.n>=2);
   if(f.soret) rows=rows.filter(g=>g.ret>0);
+  if(f.soprio) rows=rows.filter(g=>g.itens.some(r=>isPriorityLine(r.linha)));
   if(f.busca){const q=f.busca.toLowerCase();rows=rows.filter(g=>g.cliente.toLowerCase().includes(q));}
-  rows.sort((a,b)=>(b.ent+b.ret)-(a.ent+a.ret));
-  let h=`<thead><tr><th style="width:30px"></th><th>Cliente</th><th>Filial</th><th class="num">Itens</th>
-    <th class="num">Atrasados</th><th class="num">Pedidos</th><th class="money">A entregar</th><th class="money">Retido</th><th></th></tr></thead><tbody>`;
+  const stR=sortState.tblRecor;
+  if(stR){
+    rows.sort((a,b)=>{let x=a[stR.k],y=b[stR.k];
+      if(stR.k==="peds"){x=a.peds.size;y=b.peds.size;}
+      if(typeof x==="string"){x=x.toLowerCase();y=(y||"").toLowerCase();}
+      if(x<y)return stR.dir; if(x>y)return -stR.dir; return 0;});
+  } else rows.sort((a,b)=>(b.ent+b.ret)-(a.ent+a.ret));
+  const recorCols=[{k:"",t:"",sort:false},{k:"cliente",t:"Cliente"},{k:"sigla",t:"Filial"},{k:"n",t:"Itens",num:true},
+    {k:"atr",t:"Atrasados",num:true},{k:"peds",t:"Pedidos",num:true},{k:"ent",t:"A entregar",num:true},
+    {k:"ret",t:"Retido",num:true},{k:"",t:"",sort:false}];
+  let h="<thead><tr>";
+  recorCols.forEach(c=>{
+    const ar=stR&&stR.k===c.k?(stR.dir>0?'<i class="ti ti-caret-up-filled ar"></i>':'<i class="ti ti-caret-down-filled ar"></i>'):"";
+    const cls=(c.num?'num ':'')+(c.sort===false?'':'sortable');
+    h+=`<th class="${cls}" ${c.sort===false||!c.k?'':`onclick="doSortRecor('${c.k}')"`}>${c.t}${ar}</th>`;
+  });
+  h+="</tr></thead><tbody>";
   if(!rows.length) h+=`<tr><td colspan="9"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhum cliente recorrente para os filtros.</div></td></tr>`;
   rows.forEach(g=>{
     const open=recorOpen[g.k];
@@ -1637,8 +1735,9 @@ function renderRecor(){
       <td><button class="btn-cobrar" onclick='event.stopPropagation();openMailFor("${g.sigla}")'><i class="ti ti-mail"></i> Cobrar</button></td></tr>`;
     if(open){
       const its=g.itens.slice().sort((a,b)=>b.valorParado-a.valorParado);
-      let inner=`<table><thead><tr><th>Status</th><th>Pedido</th><th>Produto</th><th class="num">Dias</th><th class="num">Saldo</th><th class="money">Vlr parado</th><th class="money">Entregar</th><th class="money">Retido</th></tr></thead><tbody>`;
-      its.forEach(r=>{inner+=`<tr><td>${pill(r.status)}</td><td class="muted">${r.pedido}</td><td>${esc(r.produto)}</td>
+      let inner=`<table><thead><tr><th>Status</th><th>Pedido</th><th>Produto</th><th>Cód. produto</th><th class="num">Dias</th><th class="num">Saldo</th><th class="money">Vlr parado</th><th class="money">Entregar</th><th class="money">Retido</th></tr></thead><tbody>`;
+      its.forEach(r=>{inner+=`<tr><td>${pill(r.status)}</td><td class="muted">${r.pedido}</td><td>${esc(r.produto)}${prioTag(r.linha)}</td>
+        <td class="muted">${esc(r.codProd)}</td>
         <td class="num ${r.atrasado?'':''}" style="color:${r.atrasado?'var(--red)':'var(--text2)'}">${r.dias}d</td>
         <td class="num">${fmtINT(r.saldo)}</td><td class="money">${fmtBRL(r.valorParado)}</td>
         <td class="money" style="color:var(--green-dk)">${r.valorEntregar?fmtBRL(r.valorEntregar):'—'}</td>
@@ -1650,6 +1749,7 @@ function renderRecor(){
   document.getElementById("tblRecor").innerHTML=h+"</tbody>";
 }
 function toggleRecor(k){recorOpen[k]=!recorOpen[k];renderRecor();}
+function doSortRecor(k){const s=sortState.tblRecor;sortState.tblRecor=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderRecor();}
 
 /* ============================================================
    CONFERÊNCIA DA BASE
@@ -1718,42 +1818,70 @@ function renderAuditoria(){
   const fb=document.getElementById("fbAudit");
   if(fb && !fb.dataset.built){
     fb.dataset.built="1";
-    const filiais=uniq("sigla");
+    const filiais=uniq("sigla"), linhas=uniq("linha");
     const filialOpts=filiais.map(s=>`<option value="${s}">${s} — ${esc((BASE[s]||{}).loja||s)}</option>`).join("");
     fb.innerHTML=`
       <div class="grp"><label>Buscar</label><input type="text" data-f="busca" placeholder="cliente, produto, pedido…"></div>
       <div class="grp"><label>Filial</label><select data-f="sigla"><option value="">Todas</option>${filialOpts}</select></div>
+      ${multiSelectHtml("linha",linhas,"Linha",isPriorityLine)}
       <button class="chip on" data-f="st_nao"><i class="ti ti-square"></i> Não cobrados</button>
       <button class="chip on" data-f="st_ag"><i class="ti ti-clock"></i> Aguardando</button>
       <button class="chip on" data-f="st_re"><i class="ti ti-alert-triangle"></i> Reincidentes</button>
+      <button class="chip" data-f="soprio"><i class="ti ti-star"></i> Só linhas foco</button>
       <div class="spacer"></div>
       <button class="btn-clear" data-clear="1"><i class="ti ti-filter-off"></i> Limpar filtros</button>`;
     fb.querySelectorAll("[data-f]").forEach(el=>{
-      if(el.classList.contains("chip")) el.onclick=()=>{el.classList.toggle("on");renderAuditoria();};
+      if(el.dataset.msel) el.querySelectorAll("input[type=checkbox]").forEach(cbx=>{cbx.onchange=()=>{mselRefreshLabel(el);renderAuditoria();};});
+      else if(el.classList.contains("chip")) el.onclick=()=>{el.classList.toggle("on");renderAuditoria();};
       else el.oninput=el.onchange=()=>renderAuditoria();
     });
     fb.querySelector("[data-clear]").onclick=()=>{
-      fb.querySelectorAll("input").forEach(i=>i.value="");
+      fb.querySelectorAll("input[type=text]").forEach(i=>i.value="");
       fb.querySelectorAll("select").forEach(s=>s.value="");
       fb.querySelectorAll(".chip").forEach(c=>c.classList.add("on"));
+      fb.querySelector('[data-f="soprio"]').classList.remove("on");
+      fb.querySelectorAll("[data-msel]").forEach(el=>{el.querySelectorAll("input[type=checkbox]").forEach(cbx=>cbx.checked=false);mselRefreshLabel(el);});
       renderAuditoria();
     };
   }
   const f={};
-  fb.querySelectorAll("[data-f]").forEach(el=>{f[el.dataset.f]=el.classList.contains("chip")?el.classList.contains("on"):el.value.trim();});
+  fb.querySelectorAll("[data-f]").forEach(el=>{
+    f[el.dataset.f]=el.dataset.msel?mselValues(el):(el.classList.contains("chip")?el.classList.contains("on"):el.value.trim());
+  });
 
   let rows=RECORDS.filter(r=>r.status!=="ret"); // auditoria é sobre o cobrável
   const showSt={nao:f.st_nao,aguardando:f.st_ag,reincidente:f.st_re};
   rows=rows.filter(r=>showSt[r.audit.st]);
   if(f.sigla) rows=rows.filter(r=>r.sigla===f.sigla);
+  if(f.linha && f.linha.length) rows=rows.filter(r=>f.linha.includes(r.linha));
+  if(f.soprio) rows=rows.filter(r=>isPriorityLine(r.linha));
   if(f.busca){const q=f.busca.toLowerCase();rows=rows.filter(r=>(`${r.cliente} ${r.produto} ${r.pedido} ${r.codProd}`).toLowerCase().includes(q));}
   // ordena: reincidentes primeiro, depois não cobrados por valor, depois aguardando
   const ordST={reincidente:0,nao:1,aguardando:2};
-  rows.sort((a,b)=> (ordST[a.audit.st]-ordST[b.audit.st]) || (b.valorEntregar-a.valorEntregar));
+  const st=sortState.tblAudit;
+  if(st){
+    rows=rows.slice().sort((a,b)=>{
+      let x=a[st.k],y=b[st.k]; if(x instanceof Date)x=x?x.getTime():0; if(y instanceof Date)y=y?y.getTime():0;
+      if(typeof x==="string"){x=x.toLowerCase();y=(y||"").toLowerCase();}
+      if(x<y)return st.dir; if(x>y)return -st.dir; return 0;
+    });
+  } else {
+    rows.sort((a,b)=> (ordST[a.audit.st]-ordST[b.audit.st]) || (b.valorEntregar-a.valorEntregar));
+  }
 
-  let h=`<thead><tr><th>Ação</th><th>Situação</th><th>Atraso</th><th>Filial</th><th>Cliente</th><th>Produto</th>
-    <th>Pedido</th><th class="num">Saldo</th><th class="money">A entregar</th></tr></thead><tbody>`;
-  if(!rows.length) h+=`<tr><td colspan="9"><div class="empty"><i class="ti ti-clipboard-check"></i>Nenhum item para os filtros atuais.</div></td></tr>`;
+  const audCols=[
+    {k:"_acao",t:"Ação",sort:false},{k:"_sit",t:"Situação",sort:false},{k:"dias",t:"Atraso"},
+    {k:"sigla",t:"Filial"},{k:"cliente",t:"Cliente"},{k:"produto",t:"Produto"},{k:"codProd",t:"Cód. produto"},
+    {k:"pedido",t:"Pedido"},{k:"saldo",t:"Saldo",num:true},{k:"valorEntregar",t:"A entregar",num:true},
+  ];
+  let h="<thead><tr>";
+  audCols.forEach(c=>{
+    const ar=st&&st.k===c.k?(st.dir>0?'<i class="ti ti-caret-up-filled ar"></i>':'<i class="ti ti-caret-down-filled ar"></i>'):"";
+    const cls=(c.num?'num ':'')+(c.sort===false?'':'sortable');
+    h+=`<th class="${cls}" ${c.sort===false?'':`onclick="doSort('tblAudit','${c.k}');renderAuditoria()"`}>${c.t}${ar}</th>`;
+  });
+  h+="</tr></thead><tbody>";
+  if(!rows.length) h+=`<tr><td colspan="10"><div class="empty"><i class="ti ti-clipboard-check"></i>Nenhum item para os filtros atuais.</div></td></tr>`;
   rows.forEach(r=>{
     h+=`<tr>
       <td>${markButton(r)}</td>
@@ -1761,7 +1889,8 @@ function renderAuditoria(){
       <td>${r.atrasado?`<span class="tag-atr">${r.dias}d</span>`:`<span class="tag-ok">${r.dias}d</span>`}</td>
       <td>${filialCell(r)}</td>
       <td>${esc(r.cliente)}</td>
-      <td>${esc(r.produto)}</td>
+      <td>${esc(r.produto)}${prioTag(r.linha)}</td>
+      <td class="muted">${esc(r.codProd)}</td>
       <td class="muted">${r.pedido}</td>
       <td class="num">${fmtINT(r.saldo)}</td>
       <td class="money" style="color:var(--green-dk)">${r.valorEntregar?fmtBRL(r.valorEntregar):'—'}</td></tr>`;
@@ -1999,14 +2128,18 @@ let mailSigla=null;
 function openMailFor(sigla){
   mailSigla=sigla;
   const b=BASE[sigla]||{};
-  const itens=RECORDS.filter(r=>r.sigla===sigla);
-  const cobrar=itens.filter(r=>r.status!=="ret");
+  let itens=RECORDS.filter(r=>r.sigla===sigla);
+  const filtroLinha = ULT_FILTRO_LINHA.length ? ULT_FILTRO_LINHA : null;
+  if(filtroLinha) itens=itens.filter(r=>filtroLinha.includes(r.linha));
+  const ct=itens.filter(r=>r.status==="total"); // título quitado -> entrega integral
+  const cp=itens.filter(r=>r.status==="parc");  // só a parte já paga -> especificar qtd/valor
+  const cobrar=[...ct,...cp];
   const retidos=itens.filter(r=>r.status==="ret");
   const vEnt=cobrar.reduce((s,r)=>s+r.valorEntregar,0);
   const vRet=retidos.reduce((s,r)=>s+r.valorRetido,0);
   const atr=itens.filter(r=>r.atrasado).length;
 
-  document.getElementById("mFilial").textContent=`${sigla} · ${b.loja||""}`;
+  document.getElementById("mFilial").textContent=`${sigla} · ${b.loja||""}${filtroLinha?` · linha(s): ${filtroLinha.join(", ")}`:""}`;
 
   // Destinatários: diretoria fixa + os responsáveis REAIS da filial (da base).
   // João Vitor entra como REMETENTE (auditoria), não como "auditor da filial".
@@ -2020,31 +2153,41 @@ function openMailFor(sigla){
 
   document.getElementById("mSubject").value=`[Entrega Futura] Cobrança de entrega — ${b.loja||sigla} (${sigla}) — ${fmtDATE(dataRef)}`;
 
-  let linhas=cobrar.slice().sort((a,b)=>b.valorEntregar-a.valorEntregar).slice(0,8)
-    .map(r=>`  • Pedido ${r.pedido} — ${r.cliente}: ${fmtINT(r.qtdEntregar)} un (${fmtBRL(r.valorEntregar)})${r.atrasado?` — atrasado ${r.dias}d`:""}`).join("\n");
-  if(cobrar.length>8) linhas+=`\n  • … e mais ${cobrar.length-8} itens (ver PDF anexo).`;
-  if(!cobrar.length) linhas="  (nenhum item liberado para entrega imediata nesta filial)";
+  // título quitado: entrega integral do item, sem detalhar qtd/valor (é o saldo todo)
+  let linhasTotal=ct.slice().sort((a,b)=>b.valorEntregar-a.valorEntregar).slice(0,8)
+    .map(r=>`  • Pedido ${r.pedido} [${r.codProd}] — ${r.cliente}: entregar TOTAL — ${fmtINT(r.qtdEntregar)} un (${fmtBRL(r.valorEntregar)})${r.atrasado?` — atrasado ${r.dias}d`:""}`).join("\n");
+  if(ct.length>8) linhasTotal+=`\n  • … e mais ${ct.length-8} itens com título quitado (ver PDF anexo).`;
+  if(!ct.length) linhasTotal="  (nenhum item com título totalmente quitado nesta seleção)";
+
+  // título parcial: só a parte paga pode ser entregue — especifica qtd/valor a entregar e o que continua retido
+  let linhasParcial=cp.slice().sort((a,b)=>b.valorEntregar-a.valorEntregar).slice(0,8)
+    .map(r=>`  • Pedido ${r.pedido} [${r.codProd}] — ${r.cliente}: entregar APENAS ${fmtINT(r.qtdEntregar)} un (${fmtBRL(r.valorEntregar)}) — saldo de ${fmtINT(r.saldo)} un permanece retido (${fmtBRL(r.valorRetido)})${r.atrasado?` — atrasado ${r.dias}d`:""}`).join("\n");
+  if(cp.length>8) linhasParcial+=`\n  • … e mais ${cp.length-8} itens com pagamento parcial (ver PDF anexo).`;
+  if(!cp.length) linhasParcial="  (nenhum item com pagamento parcial nesta seleção)";
 
   document.getElementById("mBody").value=
 `Prezados,
 
-Entrega futura da filial ${b.loja||sigla} (${sigla}) — posição de ${fmtDATE(dataRef)}.
+Entrega futura da filial ${b.loja||sigla} (${sigla}) — posição de ${fmtDATE(dataRef)}.${filtroLinha?`\nLinha(s) selecionada(s) para esta cobrança: ${filtroLinha.join(", ")}.`:""}
 
 A liberar para entrega (já pago): ${fmtBRL(vEnt)} em ${fmtINT(cobrar.length)} itens${atr?`  ·  ${fmtINT(atr)} atrasados`:""}
 Retido (cliente ainda deve): ${fmtBRL(vRet)} em ${fmtINT(retidos.length)} itens
 
-Principais itens a entregar:
-${linhas}
+Itens com título quitado — entrega TOTAL:
+${linhasTotal}
+
+Itens com pagamento PARCIAL — entregar apenas a quantidade/valor já pago, o restante continua retido:
+${linhasParcial}
 
 Solicito ao auditor responsável (${b.auditor||"—"}) e ao gerente regional (${b.regional||"—"}) que cobrem o gerente (${b.gerente||"—"}) e o supervisor (${b.supervisor||"—"}) a efetivação destas entregas, retornando o que for entregue até a próxima emissão. Detalhe completo no PDF anexo.
 
-Regra: entrega-se apenas o que está pago; saldo devedor permanece retido (no desacordo, devolução da entrega futura).
+Regra: entrega-se apenas o que está pago; o saldo devedor permanece retido (no desacordo, devolução da entrega futura).
 
 Auditoria — Agroquima`;
 
   document.getElementById("mEmailNote").style.display="block";
   document.getElementById("mEmailNote").innerHTML=
-    `Diretoria, auditor responsável, gerente regional e supervisor da loja (<b>${esc(b.emailSupervisor||"sem e-mail cadastrado")}</b>) serão preenchidos automaticamente. Adicione manualmente o e-mail do gerente da loja (<b>${esc(b.gerente||"—")}</b>) antes de enviar.`;
+    `Diretoria, auditor responsável, gerente regional e supervisor da loja (<b>${esc(b.emailSupervisor||"sem e-mail cadastrado")}</b>) serão preenchidos automaticamente. Adicione manualmente o e-mail do gerente da loja (<b>${esc(b.gerente||"—")}</b>) antes de enviar.${filtroLinha?` E-mail restrito às linhas selecionadas no filtro: <b>${esc(filtroLinha.join(", "))}</b>.`:""}`;
 
   document.getElementById("modal").classList.add("on");
 }
@@ -2056,6 +2199,8 @@ function openMail(){
   if(b.emailSupervisor) dests.push(b.emailSupervisor);
   const subject=encodeURIComponent(document.getElementById("mSubject").value);
   const body=encodeURIComponent(document.getElementById("mBody").value);
+  // mailto: é o padrão suportado tanto pelo Outlook 2010 quanto pelo Outlook do Office 365
+  // (modelo clássico, conta padrão IMAP/SMTP) — abre o cliente de e-mail já configurado no Windows.
   window.location.href=`mailto:${dests.join(",")}?subject=${subject}&body=${body}`;
   marcarFilial(mailSigla);
 }
@@ -2071,7 +2216,8 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
 /* ---------- PDF de 1 página por filial ---------- */
 function gerarPDFFilial(){
   const sigla=mailSigla, b=BASE[sigla]||{};
-  const itens=RECORDS.filter(r=>r.sigla===sigla);
+  let itens=RECORDS.filter(r=>r.sigla===sigla);
+  if(ULT_FILTRO_LINHA.length) itens=itens.filter(r=>ULT_FILTRO_LINHA.includes(r.linha));
   const cobrarAll=itens.filter(r=>r.status!=="ret").sort((a,b)=>b.valorEntregar-a.valorEntregar);
   const vEnt=cobrarAll.reduce((s,r)=>s+r.valorEntregar,0);
   const vRet=itens.filter(r=>r.status==="ret").reduce((s,r)=>s+r.valorRetido,0);
