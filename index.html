@@ -303,6 +303,7 @@ tbody tr:last-child td{border-bottom:none}
   <div class="meta" id="meta" style="display:none">
     <div><b id="metaData">—</b></div>
     <div id="metaFile" class="muted"></div>
+    <div id="metaPeriodo" class="muted" style="font-size:10px"></div>
   </div>
   <button class="btn ghost" id="btnReload" style="display:none" onclick="resetApp()">
     <i class="ti ti-upload"></i> Novo relatório
@@ -1283,6 +1284,17 @@ function bootApp(isNewImport=true){
   document.getElementById("meta").style.display="";
   document.getElementById("btnReload").style.display="";
   document.getElementById("metaData").textContent="Posição: "+fmtDATE(dataRef);
+  const metaPeriodoEl=document.getElementById("metaPeriodo");
+  if(metaPeriodoEl){
+    const datasEmissao=RECORDS.map(r=>r.emissao).filter(Boolean);
+    if(datasEmissao.length){
+      const min=new Date(Math.min(...datasEmissao));
+      const max=new Date(Math.max(...datasEmissao));
+      metaPeriodoEl.textContent=`Arquivo: ${fmtDATE(min)} até ${fmtDATE(max)}`;
+    }else{
+      metaPeriodoEl.textContent="";
+    }
+  }
   sortState={};
   // status de auditoria default (atualizado quando o COBR carrega da nuvem)
   RECORDS.forEach(r=>r.audit={st:"nao",dias:null,vezes:0,dataCobr:null});
