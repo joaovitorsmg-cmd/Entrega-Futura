@@ -56,6 +56,18 @@ button{font-family:inherit;cursor:pointer}
 .btn i{font-size:16px}
 .btn.sm{padding:6px 11px;font-size:12px}
 
+.syncpill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;
+  font-weight:700;border:1px solid var(--border-2);background:var(--bg2);color:var(--text2);margin-right:10px;white-space:nowrap}
+.syncpill.ok{color:var(--green-dk);border-color:var(--green)}
+.syncpill.empty{color:#5b8cff;border-color:#5b8cff}
+.syncpill.pr{color:#caa23c;border-color:#caa23c}
+.syncpill.err{color:var(--red-dk);border-color:var(--red)}
+.card-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;box-shadow:var(--sh)}
+.card-box label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+.card-box input[type=text],.card-box input[type=password]{width:100%;padding:9px 11px;border-radius:var(--r-sm);
+  border:1px solid var(--border-2);background:var(--bg2);color:var(--text);font-size:13px;font-family:var(--mono)}
+.card-box input:focus{outline:none;border-color:var(--brand)}
+
 /* ---------- layout: sidebar + main ---------- */
 .app{display:none}
 .app.on{display:flex;min-height:calc(100vh - 64px)}
@@ -276,6 +288,7 @@ tbody tr:last-child td{border-bottom:none}
     </div>
   </div>
   <div class="spacer"></div>
+  <div class="syncpill" id="syncPill"><i class="ti ti-cloud"></i> <span>Verificando…</span></div>
   <div class="meta" id="meta" style="display:none">
     <div><b id="metaData">—</b></div>
     <div id="metaFile" class="muted"></div>
@@ -320,6 +333,8 @@ tbody tr:last-child td{border-bottom:none}
     <div class="nav-group">Base</div>
     <button class="nav-item" data-pg="base"><i class="ti ti-table"></i> Base completa</button>
     <button class="nav-item" data-pg="conferencia"><i class="ti ti-shield-check"></i> Conferência da base</button>
+    <div class="nav-group">Sistema</div>
+    <button class="nav-item" data-pg="config"><i class="ti ti-settings"></i> Configuração</button>
   </nav>
 
   <main class="main">
@@ -444,6 +459,65 @@ tbody tr:last-child td{border-bottom:none}
         <p>Verifica se cada filial do relatório tem auditor, regional, gerente e supervisor corretamente atribuídos na base.</p></div>
       <div id="confBox"></div>
     </div>
+
+    <!-- CONFIGURAÇÃO -->
+    <div class="page" id="pg-config">
+      <div class="page-head"><h2><i class="ti ti-settings"></i> Configuração</h2>
+        <p>Sincronização com a nuvem (JSONBin) e fallback automático via Pull Request no GitHub quando o histórico fica grande demais para o plano grátis.</p></div>
+
+      <div class="insight" id="cfgInfo">
+        <p><b>Sincronização automática com fallback para o GitHub:</b> a cada importação, o painel tenta publicar o histórico completo direto na nuvem (JSONBin). Quando cabe no limite do plano grátis (~100KB), todo mundo vê na hora. Quando o histórico fica grande demais: o painel cria uma branch com os dados completos e abre um <b>Pull Request</b> automático — isso dispara notificação no GitHub para quem tem acesso revisar e mesclar. Sem Token do GitHub configurado, o painel só avisa que não conseguiu sincronizar; ele nunca perde os dados desta sessão.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start">
+        <div class="card-box">
+          <h3 style="margin-top:0"><i class="ti ti-key"></i> Configuração</h3>
+          <label>Master Key do JSONBin</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="cfgJsonbinKey" style="flex:1">
+            <button class="btn ghost" id="cfgToggleKey"><i class="ti ti-eye"></i></button>
+          </div>
+          <p class="muted" style="margin:4px 0 12px">Guardada apenas neste navegador (localStorage). Nunca sai do seu computador.</p>
+
+          <label>Bin ID</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="cfgJsonbinBin" style="flex:1">
+            <button class="btn ghost" id="cfgCopyBin"><i class="ti ti-copy"></i></button>
+          </div>
+
+          <label style="margin-top:12px;display:block">Token do GitHub (fine-grained, fallback de PR)</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="cfgGhToken" style="flex:1">
+            <button class="btn ghost" id="cfgToggleTok"><i class="ti ti-eye"></i></button>
+          </div>
+          <p class="muted" style="margin:4px 0 12px">Use um PAT fine-grained restrito a este repositório, com permissão de <b>Contents: Read and write</b> + <b>Pull requests: Read and write</b>. O token só fica no navegador onde for configurado, nunca é publicado.</p>
+
+          <label>Repositório (owner/repo)</label>
+          <input type="text" id="cfgGhRepo" placeholder="joaovitorsmg-cmd/Entrega-Futura">
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+            <button class="btn" id="cfgCreateBin"><i class="ti ti-cloud-plus"></i> Criar Bin</button>
+            <button class="btn ghost" id="cfgTestJsonbin"><i class="ti ti-plug-connected"></i> Testar conexão</button>
+            <button class="btn ghost" id="cfgTestGithub"><i class="ti ti-brand-github"></i> Testar GitHub</button>
+            <button class="btn primary" id="cfgSave"><i class="ti ti-device-floppy"></i> Salvar</button>
+          </div>
+          <div id="cfgTestResult" class="note" style="margin-top:12px"></div>
+        </div>
+
+        <div class="card-box">
+          <h3 style="margin-top:0"><i class="ti ti-shield-check"></i> Estado e verificação</h3>
+          <div id="cfgStatusBox"></div>
+          <p class="muted" style="margin-top:14px">Indicadores do selo no topo:</p>
+          <ul class="muted" style="padding-left:18px;line-height:1.7">
+            <li><b style="color:var(--green)">Sincronizado</b> — dados gravados direto na nuvem.</li>
+            <li><b style="color:var(--blue,#5b8cff)">Conectado · nuvem vazia</b> — conexão ok, nenhuma importação registrada ainda.</li>
+            <li><b style="color:#caa23c">Publicado via PR</b> — histórico grande demais para o JSONBin; um Pull Request foi aberto no GitHub aguardando revisão/merge.</li>
+            <li><b style="color:var(--red)">Erro de sync</b> — não foi possível gravar em nenhum dos dois destinos.</li>
+            <li><b class="muted">Sem config</b> — Master Key/Bin ID não configurados.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -498,12 +572,27 @@ const EMAILS_PESSOAS = {}; // ex: "JOÃO VITOR":"joao.vitor@agroquima.com.br"
 let RECORDS = [];
 let dataRef = new Date();
 
-/* ---------- HISTÓRICO / JSONBin (bin dedicado deste painel) ---------- */
-const JSONBIN_BIN = "6a3b3105da38895dfef4d61b";
-const JSONBIN_KEY = "$2a$10$NhmXfS0QZiXUxosdImwfGuw6SSpu/ofmat/2kSNj9YKW8I4beCIpq";
+/* ---------- CONFIGURAÇÃO (JSONBin + GitHub) — editável na tela "Configuração", guardada no localStorage ---------- */
+const CFG_KEY = "ef_config_v1";
+const CFG_DEFAULT = {
+  jsonbinBin: "6a3b3105da38895dfef4d61b",
+  jsonbinKey: "$2a$10$NhmXfS0QZiXUxosdImwfGuw6SSpu/ofmat/2kSNj9YKW8I4beCIpq",
+  ghToken: "",
+  ghRepo: "joaovitorsmg-cmd/Entrega-Futura"
+};
+function getCfg(){
+  try{ return { ...CFG_DEFAULT, ...JSON.parse(localStorage.getItem(CFG_KEY)||"{}") }; }
+  catch(_){ return { ...CFG_DEFAULT }; }
+}
+function setCfg(patch){
+  const next = { ...getCfg(), ...patch };
+  localStorage.setItem(CFG_KEY, JSON.stringify(next));
+  return next;
+}
 const HIST_FIELD = "entregaFutura"; // namespace dentro do bin
 let HIST = { semanas: [], ultimoDetalhe: null, meses: {} }; // semanas=agregados leves; ultimoDetalhe=snapshot p/ comparar; meses=agregado por AAAA-MM
 let COMP = null; // resultado da comparação com a semana anterior
+let SYNC = { status: "noconfig", lastPrUrl: null }; // status: noconfig | ok | empty | pr | err
 
 /* ---------- REGISTRO DE COBRANÇAS (auditoria do que já foi cobrado) ---------- */
 // mapa: chave do item -> { d: "AAAA-MM-DD" (1ª cobrança), u: "AAAA-MM-DD" (última), n: nº de vezes, obs: "" }
@@ -691,9 +780,11 @@ function pill(s){return `<span class="pill ${s}">${STAT_LABEL[s]}</span>`;}
    HISTÓRICO: carregar / salvar (JSONBin) + comparação
    ============================================================ */
 async function histLoad(){
+  const cfg = getCfg();
+  if(!cfg.jsonbinKey || !cfg.jsonbinBin){ setSync("noconfig"); return false; }
   try{
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`, {
-      headers: {"X-Master-Key": JSONBIN_KEY, "X-Bin-Meta": "false"}
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.jsonbinBin}/latest`, {
+      headers: {"X-Master-Key": cfg.jsonbinKey, "X-Bin-Meta": "false"}
     });
     if(!res.ok) throw new Error("HTTP "+res.status);
     const data = await res.json();
@@ -704,22 +795,188 @@ async function histLoad(){
       HIST.meses = node.meses || {};
       COBR = node.cobrancas || {};
       if(typeof node.diasReincidencia === "number") DIAS_REINCIDENCIA = node.diasReincidencia;
+      setSync("ok");
+    }else{
+      setSync("empty");
     }
     return true;
-  }catch(e){ console.warn("histLoad:", e.message); return false; }
+  }catch(e){ console.warn("histLoad:", e.message); setSync("err"); return false; }
 }
 
+/* limite seguro do plano grátis do JSONBin (~100KB); deixamos margem */
+const JSONBIN_SAFE_LIMIT = 80000;
+
 async function histSave(){
-  try{
-    const full = { [HIST_FIELD]: { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}`, {
-      method:"PUT",
-      headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_KEY},
-      body: JSON.stringify(full)
-    });
-    return res.ok;
-  }catch(e){ console.warn("histSave:", e.message); return false; }
+  const cfg = getCfg();
+  if(!cfg.jsonbinKey || !cfg.jsonbinBin){ setSync("noconfig"); return false; }
+  const full = { [HIST_FIELD]: { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
+  const body = JSON.stringify(full);
+  if(body.length <= JSONBIN_SAFE_LIMIT){
+    try{
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.jsonbinBin}`, {
+        method:"PUT",
+        headers:{"Content-Type":"application/json","X-Master-Key":cfg.jsonbinKey},
+        body
+      });
+      if(res.ok){ setSync("ok"); return true; }
+    }catch(e){ console.warn("histSave:", e.message); }
+  }
+  // não coube no JSONBin (ou falhou) — fallback: publica via Pull Request no GitHub
+  if(cfg.ghToken && cfg.ghRepo){
+    const ok = await publishViaGithubPR(full);
+    setSync(ok ? "pr" : "err");
+    return ok;
+  }
+  setSync("err");
+  return false;
 }
+
+/* fallback: cria branch + commita data/historico.json + abre PR (notifica quem tem acesso ao repo) */
+async function publishViaGithubPR(payload){
+  const cfg = getCfg();
+  const api = `https://api.github.com/repos/${cfg.ghRepo}`;
+  const headers = {"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
+  try{
+    const refRes = await fetch(`${api}/git/ref/heads/main`,{headers});
+    if(!refRes.ok) throw new Error("não consegui ler a branch main (HTTP "+refRes.status+")");
+    const baseSha = (await refRes.json()).object.sha;
+
+    const branch = `historico-update-${Date.now()}`;
+    const createRef = await fetch(`${api}/git/refs`,{method:"POST",headers,
+      body:JSON.stringify({ref:`refs/heads/${branch}`,sha:baseSha})});
+    if(!createRef.ok) throw new Error("não consegui criar a branch (HTTP "+createRef.status+")");
+
+    let sha;
+    const existing = await fetch(`${api}/contents/data/historico.json?ref=main`,{headers});
+    if(existing.ok) sha = (await existing.json()).sha;
+
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
+    const putRes = await fetch(`${api}/contents/data/historico.json`,{method:"PUT",headers,
+      body:JSON.stringify({
+        message:"Atualiza histórico do Entrega Futura (publicado automaticamente)",
+        content, branch, ...(sha?{sha}:{})
+      })});
+    if(!putRes.ok) throw new Error("não consegui gravar o arquivo (HTTP "+putRes.status+")");
+
+    const prRes = await fetch(`${api}/pulls`,{method:"POST",headers,
+      body:JSON.stringify({
+        title:"Atualização automática do histórico — Entrega Futura",
+        head:branch, base:"main",
+        body:"Histórico grande demais para o plano grátis do JSONBin. Publicado automaticamente; revise e mescle para atualizar a base compartilhada."
+      })});
+    if(!prRes.ok) throw new Error("não consegui abrir o PR (HTTP "+prRes.status+")");
+    SYNC.lastPrUrl = (await prRes.json()).html_url;
+    return true;
+  }catch(e){ console.warn("publishViaGithubPR:", e.message); return false; }
+}
+
+function setSync(status){
+  SYNC.status = status;
+  const pill = document.getElementById("syncPill");
+  if(!pill) return;
+  const MAP = {
+    ok:["ok","ti-cloud-check","Sincronizado"],
+    empty:["empty","ti-cloud","Conectado · nuvem vazia"],
+    pr:["pr","ti-git-pull-request","Publicado via PR"],
+    err:["err","ti-cloud-x","Erro de sync"],
+    noconfig:["","ti-cloud-off","Sem config"]
+  };
+  const [cls,icon,label] = MAP[status]||MAP.noconfig;
+  pill.className = "syncpill"+(cls?" "+cls:"");
+  pill.innerHTML = `<i class="ti ${icon}"></i> <span>${label}</span>`;
+  if(typeof renderConfigStatus==="function") renderConfigStatus();
+}
+
+/* ============================================================
+   TELA DE CONFIGURAÇÃO
+   ============================================================ */
+function renderConfigStatus(){
+  const box = document.getElementById("cfgStatusBox");
+  if(!box) return;
+  const cfg = getCfg();
+  const LABEL = {
+    ok:["Sincronizado","var(--green-dk)","Os dados estão gravados direto na nuvem (JSONBin)."],
+    empty:["Conectado · nuvem vazia","#5b8cff","Conexão ok, mas nenhuma importação foi registrada ainda."],
+    pr:["Publicado via PR","#caa23c",`Histórico grande demais para o JSONBin. Um Pull Request foi aberto no GitHub${SYNC.lastPrUrl?` — <a href="${SYNC.lastPrUrl}" target="_blank">ver PR</a>`:""}.`],
+    err:["Erro de sync","var(--red-dk)","Não foi possível gravar nem no JSONBin nem no GitHub. Os dados desta sessão continuam intactos."],
+    noconfig:["Sem config","var(--text3)","Configure a Master Key e o Bin ID para habilitar a sincronização."]
+  };
+  const [label,color,desc] = LABEL[SYNC.status]||LABEL.noconfig;
+  box.innerHTML = `
+    <div style="font-size:13px;color:var(--text2);margin-bottom:4px">Status atual</div>
+    <div style="font-size:17px;font-weight:800;color:${color};margin-bottom:6px">${label}</div>
+    <p class="muted" style="font-size:12.5px;margin-bottom:10px">${desc}</p>
+    <div style="font-size:12px;color:var(--text3)">Bin: <code>${esc(cfg.jsonbinBin||"—")}</code></div>
+    <div style="font-size:12px;color:var(--text3)">Repositório GitHub: <code>${esc(cfg.ghRepo||"—")}</code></div>
+    <div style="font-size:12px;color:var(--text3)">Token do GitHub: ${cfg.ghToken?'<span style="color:var(--green-dk)">configurado</span>':'<span style="color:var(--text3)">não configurado</span>'}</div>`;
+}
+function wireConfigPage(){
+  const cfg = getCfg();
+  const $ = id => document.getElementById(id);
+  $("cfgJsonbinKey").value = cfg.jsonbinKey;
+  $("cfgJsonbinBin").value = cfg.jsonbinBin;
+  $("cfgGhToken").value = cfg.ghToken;
+  $("cfgGhRepo").value = cfg.ghRepo;
+
+  const showResult = (ok, msg) => {
+    const box = $("cfgTestResult");
+    box.innerHTML = `<span style="color:${ok?'var(--green-dk)':'var(--red-dk)'}">${esc(msg)}</span>`;
+  };
+
+  $("cfgToggleKey").onclick = () => { const i=$("cfgJsonbinKey"); i.type = i.type==="password"?"text":"password"; };
+  $("cfgToggleTok").onclick = () => { const i=$("cfgGhToken"); i.type = i.type==="password"?"text":"password"; };
+  $("cfgCopyBin").onclick = () => { navigator.clipboard.writeText($("cfgJsonbinBin").value); toast("Bin ID copiado."); };
+
+  $("cfgSave").onclick = () => {
+    setCfg({
+      jsonbinKey: $("cfgJsonbinKey").value.trim(),
+      jsonbinBin: $("cfgJsonbinBin").value.trim(),
+      ghToken: $("cfgGhToken").value.trim(),
+      ghRepo: $("cfgGhRepo").value.trim()
+    });
+    toast("Configuração salva neste navegador.");
+    histLoad();
+  };
+
+  $("cfgCreateBin").onclick = async () => {
+    const key = $("cfgJsonbinKey").value.trim();
+    if(!key){ showResult(false,"Informe a Master Key antes de criar o bin."); return; }
+    try{
+      const res = await fetch("https://api.jsonbin.io/v3/b",{method:"POST",
+        headers:{"Content-Type":"application/json","X-Master-Key":key,"X-Bin-Name":"entrega-futura-historico"},
+        body: JSON.stringify({[HIST_FIELD]:{semanas:[],ultimoDetalhe:null,cobrancas:{},diasReincidencia:DIAS_REINCIDENCIA,meses:{}}})
+      });
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const data = await res.json();
+      $("cfgJsonbinBin").value = data.metadata.id;
+      showResult(true,"Bin criado: "+data.metadata.id+". Clique em Salvar para usá-lo.");
+    }catch(e){ showResult(false,"Falha ao criar bin: "+e.message); }
+  };
+
+  $("cfgTestJsonbin").onclick = async () => {
+    const key=$("cfgJsonbinKey").value.trim(), bin=$("cfgJsonbinBin").value.trim();
+    if(!key||!bin){ showResult(false,"Informe Master Key e Bin ID."); return; }
+    try{
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${bin}/latest`,{headers:{"X-Master-Key":key,"X-Bin-Meta":"false"}});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      showResult(true,"Conexão OK! Bin acessível e legível.");
+    }catch(e){ showResult(false,"Falha ao conectar: "+e.message); }
+  };
+
+  $("cfgTestGithub").onclick = async () => {
+    const token=$("cfgGhToken").value.trim(), repo=$("cfgGhRepo").value.trim();
+    if(!token||!repo){ showResult(false,"Informe o Token e o repositório (owner/repo)."); return; }
+    try{
+      const res = await fetch(`https://api.github.com/repos/${repo}`,{headers:{"Authorization":`Bearer ${token}`,"Accept":"application/vnd.github+json"}});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const perms = (await res.json()).permissions||{};
+      showResult(true,`Conexão OK! Token válido, acesso ao repositório ${repo}. Permissão de escrita (push): ${perms.push?"sim":"não — necessária para abrir PR"}.`);
+    }catch(e){ showResult(false,"Falha ao conectar com o GitHub: "+e.message); }
+  };
+
+  renderConfigStatus();
+}
+wireConfigPage();
 
 /* carrega o histórico já na abertura do painel, antes de qualquer importação */
 histLoad();
