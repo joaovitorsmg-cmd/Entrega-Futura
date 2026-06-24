@@ -1008,9 +1008,21 @@ wireConfigPage();
 /* carrega o histórico já na abertura do painel, antes de qualquer importação */
 histLoad();
 
-/* registra a importação atual e roda a comparação com a anterior */
-async function registrarImportacao(){
+/* registra a importação atual e roda a comparação com a anterior.
+   isNewImport=false significa que estamos só reabrindo/recarregando a página com dados
+   já restaurados (localStorage ou base do GitHub) — nesse caso apenas recalculamos e
+   exibimos os dados, sem regravar o histórico nem republicar nada (evita abrir um PR
+   novo a cada visita/recarregamento da página). */
+async function registrarImportacao(isNewImport){
   await histLoad();
+  if(!isNewImport){
+    calcularAuditoria();
+    renderResumo();
+    renderAuditoria();
+    ["cobrar","retidos","base","recorrencia","filiais"].forEach(pg=>{ if(RENDERED_PAGES.has(pg)) PAGE_RENDERERS[pg](); });
+    if(RENDERED_PAGES.has("evolucao")) renderEvolucao(true);
+    return;
+  }
   const hoje = dataRef.toISOString().slice(0,10);
   const detAtual = snapshotDetalhe(RECORDS);
 
@@ -1282,7 +1294,7 @@ function ensurePageRendered(pg){
   if(fn){ fn(); RENDERED_PAGES.add(pg); }
 }
 
-function bootApp(){
+function bootApp(isNewImport=true){
   document.getElementById("intro").style.display="none";
   document.getElementById("app").classList.add("on");
   document.getElementById("meta").style.display="";
@@ -1299,7 +1311,7 @@ function bootApp(){
   // renderiza só a página ativa no momento; o resto fica sob demanda (ver ensurePageRendered)
   const activeNav=document.querySelector(".nav-item.on");
   if(activeNav) ensurePageRendered(activeNav.dataset.pg);
-  registrarImportacao();
+  registrarImportacao(isNewImport);
 }
 
 /* nav */
@@ -2102,9 +2114,9 @@ function toast(msg){const el=document.getElementById("toast");el.textContent=msg
    que abrir o link vê a mesma base, sem precisar importar o XLS nela mesma.
    Fica no fim do script para evitar acessar `let`/`const` antes de serem inicializadas. */
 if(loadLocalSnapshot()){
-  bootApp();
+  bootApp(false);
 }else{
-  loadBaseFromGithub().then(ok=>{ if(ok) bootApp(); });
+  loadBaseFromGithub().then(ok=>{ if(ok) bootApp(false); });
 }
 </script>
 </html>
