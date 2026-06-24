@@ -402,11 +402,11 @@ tbody tr:last-child td{border-bottom:none}
       <div class="cards" id="cardsAudit" style="margin-bottom:18px"></div>
       <div class="insight" style="margin-bottom:18px">
         <p style="margin-bottom:9px"><span class="pill nao">Não cobrado</span> &nbsp; está parado e nunca foi cobrado. <b>É o que você deve cobrar agora.</b></p>
-        <p style="margin-bottom:9px"><span class="pill aguard">Cobrado · aguardando</span> &nbsp; você já cobrou e ainda está dentro do prazo de <b id="prazoTxt">${DIAS_REINCIDENCIA}</b> dias. Não recobre.</p>
-        <p style="margin-bottom:9px"><span class="pill reinc">Reincidente</span> &nbsp; você cobrou há mais de <b>${DIAS_REINCIDENCIA}</b> dias e continua parado — <b>foi ignorado. Escale para a diretoria.</b></p>
+        <p style="margin-bottom:9px"><span class="pill aguard">Cobrado · aguardando</span> &nbsp; você já cobrou e ainda está dentro do prazo de <b id="prazoTxt">10</b> dias. Não recobre.</p>
+        <p style="margin-bottom:9px"><span class="pill reinc">Reincidente</span> &nbsp; você cobrou há mais de <b id="prazoTxt2">10</b> dias e continua parado — <b>foi ignorado. Escale para a diretoria.</b></p>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px">
           <label style="font-size:12px;color:var(--text2)">Prazo para virar reincidente:</label>
-          <input type="number" id="inpReinc" value="${DIAS_REINCIDENCIA}" min="1" max="90" style="width:80px;background:var(--bg);border:1px solid var(--border-2);color:var(--text);padding:6px 9px;border-radius:6px;font-size:13px">
+          <input type="number" id="inpReinc" value="10" min="1" max="90" style="width:80px;background:var(--bg);border:1px solid var(--border-2);color:var(--text);padding:6px 9px;border-radius:6px;font-size:13px">
           <span style="font-size:12px;color:var(--text3)">dias</span>
           <button class="btn sm" onclick="aplicarPrazo()"><i class="ti ti-check"></i> Aplicar</button>
         </div>
@@ -805,6 +805,7 @@ async function histLoad(){
       HIST.meses = node.meses || {};
       COBR = node.cobrancas || {};
       if(typeof node.diasReincidencia === "number") DIAS_REINCIDENCIA = node.diasReincidencia;
+      syncPrazoUI();
       setSync("ok");
     }else{
       setSync("empty");
@@ -833,9 +834,10 @@ async function histSave(){
   }
   // não coube no JSONBin (ou falhou) — fallback: publica via Pull Request no GitHub
   if(cfg.ghToken && cfg.ghRepo){
-    const ok = await publishViaGithubPR(full);
-    setSync(ok ? "pr" : "err");
-    return ok;
+    const r = await publishViaGithubPR(full);
+    setSync(r.ok ? "pr" : "err");
+    if(!r.ok) toast("Falha ao sincronizar com o GitHub: "+r.msg);
+    return r.ok;
   }
   setSync("err");
   return false;
@@ -854,7 +856,12 @@ async function publishViaGithubPR(payload){
     const branch = `historico-update-${Date.now()}`;
     const createRef = await fetch(`${api}/git/refs`,{method:"POST",headers,
       body:JSON.stringify({ref:`refs/heads/${branch}`,sha:baseSha})});
-    if(!createRef.ok) throw new Error("não consegui criar a branch (HTTP "+createRef.status+")");
+    if(!createRef.ok){
+      const dica = createRef.status===403
+        ? " — o token não tem permissão de escrita. Gere um novo PAT fine-grained com \"Contents: Read and write\" e \"Pull requests: Read and write\" marcados (o teste de conexão só confere se você tem acesso ao repo, não se o token tem essas permissões)."
+        : "";
+      throw new Error("não consegui criar a branch (HTTP "+createRef.status+")"+dica);
+    }
 
     let sha;
     const existing = await fetch(`${api}/contents/data/historico.json?ref=main`,{headers});
@@ -876,8 +883,8 @@ async function publishViaGithubPR(payload){
       })});
     if(!prRes.ok) throw new Error("não consegui abrir o PR (HTTP "+prRes.status+")");
     SYNC.lastPrUrl = (await prRes.json()).html_url;
-    return true;
-  }catch(e){ console.warn("publishViaGithubPR:", e.message); return false; }
+    return {ok:true};
+  }catch(e){ console.warn("publishViaGithubPR:", e.message); return {ok:false, msg:e.message}; }
 }
 
 function setSync(status){
@@ -980,7 +987,7 @@ function wireConfigPage(){
       const res = await fetch(`https://api.github.com/repos/${repo}`,{headers:{"Authorization":`Bearer ${token}`,"Accept":"application/vnd.github+json"}});
       if(!res.ok) throw new Error("HTTP "+res.status);
       const perms = (await res.json()).permissions||{};
-      showResult(true,`Conexão OK! Token válido, acesso ao repositório ${repo}. Permissão de escrita (push): ${perms.push?"sim":"não — necessária para abrir PR"}.`);
+      showResult(true,`Conexão OK! Token válido, acesso ao repositório ${repo}. Permissão de escrita (push): ${perms.push?"sim":"não — necessária para abrir PR"}. Atenção: isto confere seu acesso ao repositório, não as permissões do próprio token — se o fallback de PR falhar com erro 403, gere um PAT fine-grained novo com "Contents: Read and write" + "Pull requests: Read and write" marcados.`);
     }catch(e){ showResult(false,"Falha ao conectar com o GitHub: "+e.message); }
   };
 
@@ -1669,11 +1676,16 @@ function renderAuditoria(){
   });
   document.getElementById("tblAudit").innerHTML=h+"</tbody>";
 }
+function syncPrazoUI(){
+  document.getElementById("prazoTxt").textContent=DIAS_REINCIDENCIA;
+  document.getElementById("prazoTxt2").textContent=DIAS_REINCIDENCIA;
+  document.getElementById("inpReinc").value=DIAS_REINCIDENCIA;
+}
 function aplicarPrazo(){
   const v=parseInt(document.getElementById("inpReinc").value,10);
   if(!v||v<1){toast("Informe um número de dias válido.");return;}
   DIAS_REINCIDENCIA=v;
-  document.getElementById("prazoTxt").textContent=v;
+  syncPrazoUI();
   calcularAuditoria(); persistirCobranca(); refreshAll();
   toast(`Prazo de reincidência ajustado para ${v} dias.`);
 }
