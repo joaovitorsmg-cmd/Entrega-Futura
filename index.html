@@ -66,6 +66,13 @@ button{font-family:inherit;cursor:pointer}
 .card-box label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
 .card-box input[type=text],.card-box input[type=password]{width:100%;padding:9px 11px;border-radius:var(--r-sm);
   border:1px solid var(--border-2);background:var(--bg2);color:var(--text);font-size:13px;font-family:var(--mono)}
+
+.pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:10px 4px;font-size:12.5px;color:var(--text2)}
+.pager button{padding:6px 11px;border-radius:var(--r-sm);border:1px solid var(--border-2);background:var(--bg);color:var(--text);
+  cursor:pointer;font-size:12.5px;font-weight:600}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager button:not(:disabled):hover{border-color:var(--brand);background:var(--bg2)}
+.pager .pgsel{border:1px solid var(--border-2);background:var(--bg);color:var(--text);border-radius:var(--r-sm);padding:6px 9px;font-size:12.5px}
 .card-box input:focus{outline:none;border-color:var(--brand)}
 
 /* ---------- layout: sidebar + main ---------- */
@@ -384,6 +391,7 @@ tbody tr:last-child td{border-bottom:none}
       <div class="cards" id="cardsCobrar" style="margin-bottom:18px"></div>
       <div class="filterbar" id="fbCobrar"></div>
       <div class="tablewrap"><table id="tblCobrar"></table></div>
+      <div class="pager" id="tblCobrar_pager"></div>
     </div>
 
     <!-- AUDITORIA DE COBRANÇA -->
@@ -413,6 +421,7 @@ tbody tr:last-child td{border-bottom:none}
         <p>Itens não pagos — não devem ser entregues. Candidatos a acompanhamento ou devolução da entrega futura.</p></div>
       <div class="filterbar" id="fbRetidos"></div>
       <div class="tablewrap"><table id="tblRetidos"></table></div>
+      <div class="pager" id="tblRetidos_pager"></div>
     </div>
 
     <!-- RECORRÊNCIA -->
@@ -451,6 +460,7 @@ tbody tr:last-child td{border-bottom:none}
       <div class="filterbar" id="fbBase"></div>
       <div style="margin-bottom:14px"><button class="btn primary" onclick="exportCSV()"><i class="ti ti-download"></i> Baixar CSV tratado</button></div>
       <div class="tablewrap"><table id="tblBase"></table></div>
+      <div class="pager" id="tblBase_pager"></div>
     </div>
 
     <!-- CONFERÊNCIA DA BASE -->
@@ -1113,6 +1123,7 @@ function refreshAll(){
   renderResumo(); renderCobrar(); renderRetidos(); renderBase();
   renderAuditoria(); renderRecor();
   renderGrupo("tblFiliais","filial",["sigla","auditor","regional"]);
+  ["cobrar","retidos","base","recorrencia","filiais"].forEach(pg=>RENDERED_PAGES.add(pg));
 }
 
 
@@ -1162,6 +1173,26 @@ function resetApp(){
 /* ============================================================
    BOOT
    ============================================================ */
+/* lazy render: páginas pesadas só renderizam quando o usuário entra nelas;
+   evita reconstruir todas as tabelas a cada importação semanal (arquivo cresce sempre) */
+const PAGE_RENDERERS={
+  cobrar:()=>renderCobrar(),
+  retidos:()=>renderRetidos(),
+  base:()=>renderBase(),
+  filiais:()=>renderGrupo("tblFiliais","filial",["sigla","auditor","regional"]),
+  auditores:()=>renderGrupo("tblAuditores","auditor",[]),
+  regionais:()=>renderGrupo("tblRegionais","regional",[]),
+  recorrencia:()=>renderRecor(),
+  conferencia:()=>renderConferencia(),
+  evolucao:()=>renderEvolucao(null,true)
+};
+let RENDERED_PAGES=new Set();
+function ensurePageRendered(pg){
+  if(RENDERED_PAGES.has(pg)) return;
+  const fn=PAGE_RENDERERS[pg];
+  if(fn){ fn(); RENDERED_PAGES.add(pg); }
+}
+
 function bootApp(){
   document.getElementById("intro").style.display="none";
   document.getElementById("app").classList.add("on");
@@ -1171,17 +1202,14 @@ function bootApp(){
   sortState={};
   // status de auditoria default (atualizado quando o COBR carrega da nuvem)
   RECORDS.forEach(r=>r.audit={st:"nao",dias:null,vezes:0,dataCobr:null});
+  RENDERED_PAGES=new Set();
   renderResumo();
   renderInsights();
   buildFilters();
-  renderCobrar(); renderRetidos(); renderBase();
-  renderGrupo("tblFiliais","filial",["sigla","auditor","regional"]);
-  renderGrupo("tblAuditores","auditor",[]);
-  renderGrupo("tblRegionais","regional",[]);
-  renderRecor();
-  renderConferencia();
   renderAuditoria();
-  renderEvolucao(null,true);
+  // renderiza só a página ativa no momento; o resto fica sob demanda (ver ensurePageRendered)
+  const activeNav=document.querySelector(".nav-item.on");
+  if(activeNav) ensurePageRendered(activeNav.dataset.pg);
   registrarImportacao();
 }
 
@@ -1192,6 +1220,7 @@ document.querySelectorAll(".nav-item").forEach(t=>t.onclick=()=>{
   t.classList.add("on");
   document.getElementById("pg-"+t.dataset.pg).classList.add("on");
   document.querySelector(".main").scrollTop=0;
+  ensurePageRendered(t.dataset.pg);
 });
 
 /* ============================================================
@@ -1295,12 +1324,32 @@ function applyFilter(rows,f){
     return true;
   });
 }
-function rerender(){renderCobrar();renderRetidos();renderBase();}
+function rerender(){pageState.tblCobrar=1;pageState.tblRetidos=1;pageState.tblBase=1;renderCobrar();renderRetidos();renderBase();}
 
 /* ============================================================
    TABELA DE DETALHE — botão Cobrar na 1ª coluna, filial com nome, tudo classificável
    ============================================================ */
 let sortState={};
+const PAGE_SIZE=150;
+let pageState={tblCobrar:1,tblRetidos:1,tblBase:1};
+const RENDER_BY_TBL={tblCobrar:()=>renderCobrar(),tblRetidos:()=>renderRetidos(),tblBase:()=>renderBase()};
+function goToPage(tblId,page){pageState[tblId]=page;(RENDER_BY_TBL[tblId]||(()=>{}))();}
+function renderPager(tblId,total){
+  const box=document.getElementById(tblId+"_pager");
+  if(!box) return;
+  const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  const cur=Math.min(pageState[tblId]||1,pages);
+  pageState[tblId]=cur;
+  if(total<=PAGE_SIZE){ box.innerHTML=""; return; }
+  const from=(cur-1)*PAGE_SIZE+1, to=Math.min(cur*PAGE_SIZE,total);
+  let opts="";
+  for(let p=1;p<=pages;p++) opts+=`<option value="${p}"${p===cur?" selected":""}>${p}</option>`;
+  box.innerHTML=`<span>${fmtINT(from)}–${fmtINT(to)} de ${fmtINT(total)}</span>
+    <button ${cur<=1?"disabled":""} onclick="goToPage('${tblId}',${cur-1})"><i class="ti ti-chevron-left"></i></button>
+    <select class="pgsel" onchange="goToPage('${tblId}',+this.value)">${opts}</select>
+    <span>de ${pages}</span>
+    <button ${cur>=pages?"disabled":""} onclick="goToPage('${tblId}',${cur+1})"><i class="ti ti-chevron-right"></i></button>`;
+}
 function detailTable(tblId,rows){
   const cols=[
     {k:"_mail",t:"",sort:false,render:r=>`<button class="btn-cobrar" onclick='openMailFor("${r.sigla}")'><i class="ti ti-mail"></i> Cobrar</button>`},
@@ -1336,11 +1385,15 @@ function detailTable(tblId,rows){
     h+=`<th class="${cls}" ${c.sort===false?'':`onclick="doSort('${tblId}','${c.k}')"`}>${c.t}${ar}</th>`;
   });
   h+="</tr></thead><tbody>";
-  if(!rows.length){h+=`<tr><td colspan="${cols.length}"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhum item para os filtros atuais.</div></td></tr>`;}
-  else rows.forEach(r=>{h+="<tr>";cols.forEach(c=>{h+=`<td class="${c.num?'num':c.money?'money':''}">${c.render(r)}</td>`;});h+="</tr>";});
+  const total=rows.length;
+  const page=Math.max(1,pageState[tblId]||1);
+  const pageRows=total>PAGE_SIZE ? rows.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE) : rows;
+  if(!pageRows.length){h+=`<tr><td colspan="${cols.length}"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhum item para os filtros atuais.</div></td></tr>`;}
+  else pageRows.forEach(r=>{h+="<tr>";cols.forEach(c=>{h+=`<td class="${c.num?'num':c.money?'money':''}">${c.render(r)}</td>`;});h+="</tr>";});
   document.getElementById(tblId).innerHTML=h+"</tbody>";
+  renderPager(tblId,total);
 }
-function doSort(tblId,k){const s=sortState[tblId];sortState[tblId]=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};rerender();}
+function doSort(tblId,k){const s=sortState[tblId];sortState[tblId]=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};pageState[tblId]=1;rerender();}
 
 function renderCobrar(){
   const f=readFilter("fbCobrar");
