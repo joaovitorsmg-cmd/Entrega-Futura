@@ -1132,17 +1132,24 @@ async function registrarImportacao(isNewImport){
 }
 let lastSyncOk=null;
 
+/* cruza um item (pela mesma chave usada no COBR) com o histórico de cobrança,
+   pra responder "isso que saiu/baixou, eu já tinha cobrado?" na Conferência */
+function infoCobrancaItem(k){
+  const c = COBR[k];
+  if(!c) return {cobrado:false, vezes:0, primeira:null, ultima:null};
+  return {cobrado:true, vezes:c.n||1, primeira:c.d||null, ultima:c.u||c.d||null};
+}
 function compararSnapshots(antItens, atualDet, dataAnt){
   const A = new Set(Object.keys(antItens));
   const B = new Set(Object.keys(atualDet));
   const entreguesTotal = [], parciais = [], novos = [];
   // entregue total: estava antes, sumiu agora
-  A.forEach(k=>{ if(!B.has(k)){ const o=antItens[k]; entreguesTotal.push({k,...o,entregue:o.s}); }});
+  A.forEach(k=>{ if(!B.has(k)){ const o=antItens[k]; entreguesTotal.push({k,...o,entregue:o.s,cobr:infoCobrancaItem(k)}); }});
   // parcial: continua, mas saldo caiu
   A.forEach(k=>{
     if(B.has(k)){
       const a=antItens[k], b=atualDet[k];
-      if(b.s < a.s) parciais.push({k, c:a.c, p:a.p, f:a.f, ped:a.ped, de:a.s, para:b.s, entregue:a.s-b.s, vu:a.vu});
+      if(b.s < a.s) parciais.push({k, c:a.c, p:a.p, f:a.f, ped:a.ped, de:a.s, para:b.s, entregue:a.s-b.s, vu:a.vu, cobr:infoCobrancaItem(k)});
     }
   });
   // novo: não estava antes
@@ -2233,15 +2240,18 @@ function renderEntregues(){
   if(q) rows=rows.filter(r=>(`${r.c} ${r.p} ${r.ped} ${r.f}`).toLowerCase().includes(q));
   rows.sort((a,b)=>(b.entregue*(b.vu||0))-(a.entregue*(a.vu||0)));
   let h=`<thead><tr><th>Tipo</th><th>Filial</th><th>Pedido</th><th>Cliente</th><th>Produto</th>
-    <th class="num">Entregue</th><th class="num">Saldo antes</th><th class="num">Saldo agora</th></tr></thead><tbody>`;
-  if(!rows.length) h+=`<tr><td colspan="8"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhuma entrega no período (para os filtros atuais).</div></td></tr>`;
-  rows.forEach(r=>{h+=`<tr>
+    <th class="num">Entregue</th><th class="num">Saldo antes</th><th class="num">Saldo agora</th><th>Cobrança</th></tr></thead><tbody>`;
+  if(!rows.length) h+=`<tr><td colspan="9"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhuma entrega no período (para os filtros atuais).</div></td></tr>`;
+  rows.forEach(r=>{const cb=r.cobr||{cobrado:false};h+=`<tr>
     <td>${r.tipo==="total"?'<span class="pill total">Entregue</span>':'<span class="pill parc">Parcial</span>'}</td>
     <td>${filialCell({sigla:r.f,filial:(BASE[r.f]||{}).loja||r.f})}</td>
     <td class="muted">${r.ped}</td><td>${esc(r.c)}</td><td>${esc(r.p)}</td>
     <td class="num" style="color:var(--green-dk);font-weight:700">${fmtINT(r.entregue)}</td>
     <td class="num muted">${fmtINT(r.tipo==="total"?r.entregue:r.de)}</td>
-    <td class="num">${r.tipo==="total"?'<span style="color:var(--green)">0</span>':fmtINT(r.para)}</td></tr>`;});
+    <td class="num">${r.tipo==="total"?'<span style="color:var(--green)">0</span>':fmtINT(r.para)}</td>
+    <td>${cb.cobrado
+      ? `<span class="pill aguard" title="1ª cobrança em ${fmtDATE(new Date(cb.primeira))}">cobrado ${fmtINT(cb.vezes)}x · última ${fmtDATE(new Date(cb.ultima))}</span>`
+      : `<span class="pill nao">nunca cobrado</span>`}</td></tr>`;});
   tbl.innerHTML=h+"</tbody>";
 }
 
