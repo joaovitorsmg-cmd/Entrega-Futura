@@ -1249,16 +1249,6 @@ async function loadBaseFromGithub(){
   }catch(e){ console.warn("loadBaseFromGithub:", e.message); return false; }
 }
 
-/* restaura a base completa salva localmente (se houver), para não exigir
-   reanexar o XLS a cada vez que a página é recarregada. Se este navegador nunca
-   importou nada, busca a última base publicada no GitHub — assim qualquer pessoa
-   que abrir o link vê a mesma base, sem precisar importar o XLS nela mesma. */
-if(loadLocalSnapshot()){
-  bootApp();
-}else{
-  loadBaseFromGithub().then(ok=>{ if(ok) bootApp(); });
-}
-
 /* ============================================================
    BOOT
    ============================================================ */
@@ -2094,5 +2084,15 @@ let toastT;
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("on");
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove("on"),2600);}
 
+/* restaura a base completa salva localmente (se houver), para não exigir
+   reanexar o XLS a cada vez que a página é recarregada. Se este navegador nunca
+   importou nada, busca a última base publicada no GitHub — assim qualquer pessoa
+   que abrir o link vê a mesma base, sem precisar importar o XLS nela mesma.
+   Fica no fim do script para evitar acessar `let`/`const` antes de serem inicializadas. */
+if(loadLocalSnapshot()){
+  bootApp();
+}else{
+  loadBaseFromGithub().then(ok=>{ if(ok) bootApp(); });
+}
 </script>
 </html>
