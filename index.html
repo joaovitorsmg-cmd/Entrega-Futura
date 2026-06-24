@@ -219,6 +219,9 @@ tbody tr:last-child td{border-bottom:none}
 .insight.warn .big{color:var(--amber-dk)} .insight.crit .big{color:var(--red-dk)} .insight.good .big{color:var(--green-dk)}
 .insight p{color:var(--text2);font-size:13px;line-height:1.6}
 .insight p b{color:var(--text)}
+.insight.hero{border-left-width:6px;background:linear-gradient(135deg,var(--bg2),var(--bg))}
+.insight.hero .big{font-size:32px}
+.insight.hero h3{font-size:17px}
 .insight ul{margin:11px 0 0;list-style:none}
 .insight li{padding:7px 0;border-top:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;gap:14px;align-items:center}
 .insight li:first-child{border-top:none}
@@ -350,7 +353,7 @@ tbody tr:last-child td{border-bottom:none}
     <!-- RESUMO -->
     <div class="page on" id="pg-resumo">
       <div class="page-head"><h2><i class="ti ti-layout-dashboard"></i> Resumo executivo</h2>
-        <p>Posição da entrega futura da rede — produto vendido e ainda não retirado.</p></div>
+        <p>Posição da entrega futura da Agroquima — produto vendido e ainda não retirado.</p></div>
       <div class="cards" id="cardsResumo"></div>
       <div class="section-title">Resumo por linha de produto</div>
       <div class="tablewrap full"><table id="tblLinha"></table></div>
@@ -372,7 +375,7 @@ tbody tr:last-child td{border-bottom:none}
     <!-- EVOLUÇÃO -->
     <div class="page" id="pg-evolucao">
       <div class="page-head"><h2><i class="ti ti-chart-line"></i> Evolução semanal</h2>
-        <p>O que foi entregue desde a última importação e o histórico da rede.</p></div>
+        <p>O que foi entregue desde a última importação e o histórico da Agroquima.</p></div>
       <div class="section-title">Comparação com a semana anterior</div>
       <div id="cmpBox"></div>
       <div class="section-title">Histórico de importações</div>
@@ -401,6 +404,9 @@ tbody tr:last-child td{border-bottom:none}
       <div class="page-head"><h2><i class="ti ti-clipboard-check"></i> Auditoria de cobrança</h2>
         <p>O que já foi cobrado e o que não foi. Evita cobrar duas vezes o mesmo item e expõe quem foi cobrado e ignorou.</p></div>
       <div id="cobrStatus" class="note" style="margin-bottom:14px"></div>
+      <button class="btn primary" id="btnFinalizarCobr" onclick="persistirCobranca()" style="margin-bottom:14px">
+        <i class="ti ti-cloud-upload"></i> Finalizar cobranças (sincronizar com a nuvem)
+      </button>
       <div class="cards" id="cardsAudit" style="margin-bottom:18px"></div>
       <div class="insight" style="margin-bottom:18px">
         <p style="margin-bottom:9px"><span class="pill nao">Não cobrado</span> &nbsp; está parado e nunca foi cobrado. <b>É o que você deve cobrar agora.</b></p>
@@ -575,17 +581,27 @@ tbody tr:last-child td{border-bottom:none}
 /* ============================================================
    BASE DE REGIONAIS (30 filiais) — embutida
    ============================================================ */
-const BASE = {"MTZ":{"loja":"MATRIZ","estado":"GO","gerente":"REVALINO NETO","supervisor":"ERON LUIZ","regional":"SERGIO ADRIANO","auditor":"JOÃO VITOR"},"ARG":{"loja":"ARAGUAÍNA","estado":"TO","gerente":"FABIO AUGUSTO","supervisor":"MAGNO ALVES","regional":"LEANDRO CAMPOS","auditor":"CARLOS POGGIAN"},"RVD":{"loja":"RIO VERDE","estado":"GO","gerente":"WENDER PARTATA","supervisor":"NATANIELLE VARGAS","regional":"WENDER PARTATA","auditor":"JOÃO VITOR"},"UBR":{"loja":"UBERLÂNDIA","estado":"MG","gerente":"JOÃO CLÁUDIO","supervisor":"GISELE MARIA","regional":"NABIO BARROS","auditor":"JOÃO VITOR"},"MAR":{"loja":"MARABÁ","estado":"PA","gerente":"ENIO JOSAFE","supervisor":"LUCAS DAMACENO","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"},"JAT":{"loja":"JATAI","estado":"GO","gerente":"RENATO TEODORO","supervisor":"LUBIA SILVA","regional":"WENDER PARTATA","auditor":"JOÃO VITOR"},"CRI":{"loja":"CRISTALINA","estado":"GO","gerente":"ANDRE FERNANDO","supervisor":"MARCIA DE OLIVEIRA","regional":"NABIO BARROS","auditor":"JOÃO VITOR"},"FAG":{"loja":"UBS","estado":"GO","gerente":"EVANDRO MACEDO","supervisor":"KARINE GOMES","regional":"EVANDRO MACEDO","auditor":"FÁBIO"},"RED":{"loja":"REDENÇÃO","estado":"PA","gerente":"ANDERSON PEREIRA","supervisor":"BARBARA PEREIRA","regional":"LEANDRO CAMPOS","auditor":"CARLOS POGGIAN"},"IMP":{"loja":"IMPERATRIZ","estado":"MA","gerente":"IALE MILHOMEM","supervisor":"ROSIANE CANDIDO","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"},"BAR":{"loja":"BARRA DO GARÇAS","estado":"MT","gerente":"VINICIUS BRITO","supervisor":"KARINE SOARES","regional":"MATO GROSSO","auditor":"JOÃO VITOR"},"PAL":{"loja":"PALMAS","estado":"TO","gerente":"MARLON GERMANO","supervisor":"PATRICIA PEREIRA","regional":"LEANDRO CAMPOS","auditor":"CARLOS POGGIAN"},"MOZ":{"loja":"MOZARLÂNDIA","estado":"GO","gerente":"THIAGO VAZ","supervisor":"NÚBIA GASPAROTTI","regional":"SERGIO ADRIANO","auditor":"JOÃO VITOR"},"PGM":{"loja":"PARAGOMINAS","estado":"PA","gerente":"LORENA MOISES","supervisor":"ARTHUR  SILVA","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"},"SFX":{"loja":"SÃO FELIX DO XINGU","estado":"PA","gerente":"PEDRO MACIEL","supervisor":"LANNA  KEROLAYNE","regional":"LEANDRO CAMPOS","auditor":"CARLOS POGGIAN"},"FAP":{"loja":"FABRICA APARECIDA","estado":"GO","gerente":"ANNAPAULLA GARCIA","supervisor":"ANNAPAULLA GARCIA","regional":"ANNAPAULLA GARCIA","auditor":"JOÃO VITOR"},"FCB":{"loja":"CUIABÁ","estado":"MT","gerente":"GEOVANNY VIGILATO","supervisor":"JULIANA LIMA","regional":"MATO GROSSO","auditor":"FÁBIO"},"URU":{"loja":"URUAÇU","estado":"GO","gerente":"EDVANDO JOSE","supervisor":"NIVEA ALVES","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"MOR":{"loja":"MORRINHOS","estado":"GO","gerente":"ABEL HANUN","supervisor":"PAULA REGINA","regional":"NABIO BARROS","auditor":"JOÃO VITOR"},"CON":{"loja":"CONFRESA","estado":"MT","gerente":"AKYLLA OLIVEIRA","supervisor":"FELIPE ANDRADE","regional":"MATO GROSSO","auditor":"CARLOS POGGIAN"},"FOR":{"loja":"FORMOSA","estado":"GO","gerente":"DANIEL BARREIRA","supervisor":"JULIANA MARIA","regional":"NABIO BARROS","auditor":"FÁBIO"},"JUS":{"loja":"JUSSARA","estado":"GO","gerente":"CLESIO ALVES","supervisor":"MARIANNE SAHARA","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"XRA":{"loja":"XINGUARA","estado":"PA","gerente":"WILLIAN ANTIGO","supervisor":"LEONICE MORAIS","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"},"POR":{"loja":"PORANGATU","estado":"GO","gerente":"ANTONIO CARLOS","supervisor":"ALLYNE LUCENA","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"PLA":{"loja":"PONTES E LACERDA","estado":"MT","gerente":"MARCELO MULLER","supervisor":"RENATA COSTA","regional":"MATO GROSSO","auditor":"FÁBIO"},"GRA":{"loja":"GOIANIRA","estado":"GO","gerente":"HENISLEY SABINO","supervisor":"HENISLEY SABINO","regional":"HENISLEY SABINO","auditor":"FÁBIO"},"CAN":{"loja":"CANARANA","estado":"MT","gerente":"LEONARDO FREITAS","supervisor":"INGRID KAROLAYNE","regional":"MATO GROSSO","auditor":"JOÃO VITOR"},"GUR":{"loja":"GURUPI","estado":"TO","gerente":"FREDERICO CARRIJO","supervisor":"RENATA  CERQUEIRA","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"RIA":{"loja":"RIALMA","estado":"GO","gerente":"NATALINO NETO","supervisor":"ROSILDA CURSINO","regional":"SERGIO ADRIANO","auditor":"FÁBIO"},"ALT":{"loja":"ALTAMIRA","estado":"PA","gerente":"DAVID DOURADO","supervisor":"JOSIMARA CABRAL","regional":"LEANDRO CAMPOS","auditor":"GUILHERME"}};
+const BASE = {"MTZ": {"loja": "MATRIZ", "estado": "GO", "gerente": "REVALINO NETO", "supervisor": "ERON LUIZ", "regional": "SERGIO ADRIANO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f01@agroquima.com.br"}, "ARG": {"loja": "ARAGUAÍNA", "estado": "TO", "gerente": "FABIO AUGUSTO", "supervisor": "MAGNO ALVES", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "magno.abreu@agroquima.com.br"}, "RVD": {"loja": "RIO VERDE", "estado": "GO", "gerente": "WENDER PARTATA", "supervisor": "NATANIELLE VARGAS", "regional": "WENDER PARTATA", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f04@agroquima.com.br"}, "UBR": {"loja": "UBERLÂNDIA", "estado": "MG", "gerente": "JOÃO CLÁUDIO", "supervisor": "GISELE MARIA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "gisele@agroquima.com.br"}, "MAR": {"loja": "MARABÁ", "estado": "PA", "gerente": "ENIO JOSAFE", "supervisor": "LUCAS DAMACENO", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f10@agroquima.com.br"}, "JAT": {"loja": "JATAI", "estado": "GO", "gerente": "RENATO TEODORO", "supervisor": "LUBIA SILVA", "regional": "WENDER PARTATA", "auditor": "JOÃO VITOR", "emailSupervisor": "lubia@agroquima.com.br"}, "CRI": {"loja": "CRISTALINA", "estado": "GO", "gerente": "ANDRE FERNANDO", "supervisor": "MARCIA DE OLIVEIRA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "marcia@agroquima.com.br"}, "FAG": {"loja": "UBS", "estado": "GO", "gerente": "EVANDRO MACEDO", "supervisor": "KARINE GOMES", "regional": "EVANDRO MACEDO", "auditor": "FÁBIO", "emailSupervisor": "karine.gomes@agroquima.com.br"}, "RED": {"loja": "REDENÇÃO", "estado": "PA", "gerente": "ANDERSON PEREIRA", "supervisor": "BARBARA PEREIRA", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f14@agroquima.com.br"}, "IMP": {"loja": "IMPERATRIZ", "estado": "MA", "gerente": "IALE MILHOMEM", "supervisor": "ROSIANE CANDIDO", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f16@agroquima.com.br"}, "BAR": {"loja": "BARRA DO GARÇAS", "estado": "MT", "gerente": "VINICIUS BRITO", "supervisor": "KARINE SOARES", "regional": "MATO GROSSO", "auditor": "JOÃO VITOR", "emailSupervisor": "karini.soares@agroquima.com.br"}, "PAL": {"loja": "PALMAS", "estado": "TO", "gerente": "MARLON GERMANO", "supervisor": "PATRICIA PEREIRA", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f19@agroquima.com.br"}, "MOZ": {"loja": "MOZARLÂNDIA", "estado": "GO", "gerente": "THIAGO VAZ", "supervisor": "NÚBIA GASPAROTTI", "regional": "SERGIO ADRIANO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f21@agroquima.com.br"}, "PGM": {"loja": "PARAGOMINAS", "estado": "PA", "gerente": "LORENA MOISES", "supervisor": "ARTHUR  SILVA", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f22@agroquima.com.br"}, "SFX": {"loja": "SÃO FELIX DO XINGU", "estado": "PA", "gerente": "PEDRO MACIEL", "supervisor": "LANNA  KEROLAYNE", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f23@agroquima.com.br"}, "FAP": {"loja": "FABRICA APARECIDA", "estado": "GO", "gerente": "ANNAPAULLA GARCIA", "supervisor": "ANNAPAULLA GARCIA", "regional": "ANNAPAULLA GARCIA", "auditor": "JOÃO VITOR", "emailSupervisor": "annapaulla@agroquima.com.br"}, "FCB": {"loja": "CUIABÁ", "estado": "MT", "gerente": "GEOVANNY VIGILATO", "supervisor": "JULIANA LIMA", "regional": "MATO GROSSO", "auditor": "FÁBIO", "emailSupervisor": "juliana.lima@agroquima.com.br"}, "URU": {"loja": "URUAÇU", "estado": "GO", "gerente": "EDVANDO JOSE", "supervisor": "NIVEA ALVES", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f27@agroquima.com.br"}, "MOR": {"loja": "MORRINHOS", "estado": "GO", "gerente": "ABEL HANUN", "supervisor": "PAULA REGINA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f28@agroquima.com.br"}, "CON": {"loja": "CONFRESA", "estado": "MT", "gerente": "AKYLLA OLIVEIRA", "supervisor": "FELIPE ANDRADE", "regional": "MATO GROSSO", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f29@agroquima.com.br"}, "FOR": {"loja": "FORMOSA", "estado": "GO", "gerente": "DANIEL BARREIRA", "supervisor": "JULIANA MARIA", "regional": "NABIO BARROS", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f30@agroquima.com.br"}, "JUS": {"loja": "JUSSARA", "estado": "GO", "gerente": "CLESIO ALVES", "supervisor": "MARIANNE SAHARA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f31@agroquima.com.br"}, "XRA": {"loja": "XINGUARA", "estado": "PA", "gerente": "WILLIAN ANTIGO", "supervisor": "LEONICE MORAIS", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f32@agroquima.com.br"}, "POR": {"loja": "PORANGATU", "estado": "GO", "gerente": "ANTONIO CARLOS", "supervisor": "ALLYNE LUCENA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f34@agroquima.com.br"}, "PLA": {"loja": "PONTES E LACERDA", "estado": "MT", "gerente": "MARCELO MULLER", "supervisor": "RENATA COSTA", "regional": "MATO GROSSO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f35@agroquima.com.br"}, "GRA": {"loja": "GOIANIRA", "estado": "GO", "gerente": "HENISLEY SABINO", "supervisor": "HENISLEY SABINO", "regional": "HENISLEY SABINO", "auditor": "FÁBIO", "emailSupervisor": "henisley.sabino@agroquima.com.br"}, "CAN": {"loja": "CANARANA", "estado": "MT", "gerente": "LEONARDO FREITAS", "supervisor": "INGRID KAROLAYNE", "regional": "MATO GROSSO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f37@agroquima.com.br"}, "GUR": {"loja": "GURUPI", "estado": "TO", "gerente": "FREDERICO CARRIJO", "supervisor": "RENATA  CERQUEIRA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f38@agroquima.com.br"}, "RIA": {"loja": "RIALMA", "estado": "GO", "gerente": "NATALINO NETO", "supervisor": "ROSILDA CURSINO", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f40@agroquima.com.br"}, "ALT": {"loja": "ALTAMIRA", "estado": "PA", "gerente": "DAVID DOURADO", "supervisor": "JOSIMARA CABRAL", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f41@agroquima.com.br"}};
 
-/* E-mails fixos da diretoria (preencher quando tiver a lista).
-   Os papéis por loja (auditor/regional/gerente/supervisor) podem ser
-   mapeados aqui também; por ora ficam em branco e o painel mostra o NOME. */
+/* E-mails fixos da diretoria e dos responsáveis (auditor/regional).
+   Supervisor usa o e-mail por filial (BASE[sigla].emailSupervisor).
+   Gerente da loja não tem e-mail cadastrado — é adicionado manualmente
+   ao redigir o e-mail. */
 const EMAILS_DIRETORIA = {
-  "Aldo (Diretor Executivo)": "",
-  "Rafa Barsch (Proprietário)": "",
-  "Luciana Ramos (Gerente Adm.)": ""
+  "Aldo (Diretor Executivo)": "aldo@agroquima.com.br",
+  "Rafa Barsch (Proprietário)": "rafa@agroquima.com.br",
+  "Luciana Ramos (Gerente Adm.)": "luciana.ramos@agroquima.com.br"
 };
-const EMAILS_PESSOAS = {}; // ex: "JOÃO VITOR":"joao.vitor@agroquima.com.br"
+const EMAILS_PESSOAS = {
+  "JOÃO VITOR": "joao.mendes@agroquima.com.br",
+  "CARLOS POGGIAN": "carlos.poggian@agroquima.com.br",
+  "FÁBIO": "fabio.ribeiro@agroquima.com.br",
+  "GUILHERME": "guilherme.carvalho@agroquima.com.br",
+  "SERGIO ADRIANO": "fiuza@agroquima.com.br",
+  "LEANDRO CAMPOS": "leandro.campos@agroquima.com.br",
+  "NABIO BARROS": "nabio.costa@agroquima.com.br",
+  "WENDER PARTATA": "partata@agroquima.com.br"
+};
 
 /* ============================================================
    ESTADO
@@ -802,7 +818,7 @@ function pill(s){return `<span class="pill ${s}">${STAT_LABEL[s]}</span>`;}
    ============================================================ */
 async function histLoad(){
   const cfg = getCfg();
-  if(!cfg.jsonbinKey || !cfg.jsonbinBin){ setSync("noconfig"); return false; }
+  if(!cfg.jsonbinKey || !cfg.jsonbinBin){ setSync("noconfig"); loadCobrLocal(); syncPrazoUI(); return false; }
   try{
     const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.jsonbinBin}/latest`, {
       headers: {"X-Master-Key": cfg.jsonbinKey, "X-Bin-Meta": "false"}
@@ -816,13 +832,15 @@ async function histLoad(){
       HIST.meses = node.meses || {};
       COBR = node.cobrancas || {};
       if(typeof node.diasReincidencia === "number") DIAS_REINCIDENCIA = node.diasReincidencia;
-      syncPrazoUI();
       setSync("ok");
     }else{
       setSync("empty");
     }
+    // mescla cobranças feitas neste navegador e ainda não finalizadas (sincronizadas)
+    loadCobrLocal();
+    syncPrazoUI();
     return true;
-  }catch(e){ console.warn("histLoad:", e.message); setSync("err"); return false; }
+  }catch(e){ console.warn("histLoad:", e.message); setSync("err"); loadCobrLocal(); syncPrazoUI(); return false; }
 }
 
 /* limite seguro do plano grátis do JSONBin (~100KB); deixamos margem */
@@ -1110,20 +1128,20 @@ function resumoAuditoria(rows){
 }
 // marca 1 item como cobrado hoje (idempotente: incrementa contador, atualiza última data)
 function marcarItem(k, silencioso){
-  const hoje=dataRef.toISOString().slice(0,10);
+  const hoje=new Date().toISOString().slice(0,10);
   const c=COBR[k];
   if(c){ c.u=hoje; c.n=(c.n||1)+1; }
   else { COBR[k]={d:hoje,u:hoje,n:1,obs:""}; }
-  if(!silencioso){ calcularAuditoria(); persistirCobranca(); refreshAll(); toast("Item marcado como cobrado."); }
+  if(!silencioso){ calcularAuditoria(); saveCobrLocal(); refreshAll(); toast("Item marcado como cobrado."); }
 }
 function desmarcarItem(k){
   delete COBR[k];
-  calcularAuditoria(); persistirCobranca(); refreshAll();
+  calcularAuditoria(); saveCobrLocal(); refreshAll();
   toast("Marca de cobrança removida.");
 }
 // marca todos os itens cobráveis de uma filial (usado ao gerar e-mail/PDF)
 function marcarFilial(sigla, silencioso){
-  const hoje=dataRef.toISOString().slice(0,10);
+  const hoje=new Date().toISOString().slice(0,10);
   let n=0;
   RECORDS.filter(r=>r.sigla===sigla && r.status!=="ret").forEach(r=>{
     const k=itemKey(r), c=COBR[k];
@@ -1131,8 +1149,27 @@ function marcarFilial(sigla, silencioso){
     n++;
   });
   calcularAuditoria();
-  if(!silencioso){ persistirCobranca(); refreshAll(); toast(`${n} itens da filial ${sigla} marcados como cobrados.`); }
+  if(!silencioso){ saveCobrLocal(); refreshAll(); toast(`${n} itens da filial ${sigla} marcados como cobrados.`); }
   return n;
+}
+/* COBR (cobranças) fica salvo neste navegador a cada marcação — não depende
+   da nuvem para sobreviver a um reload. A sincronização com a nuvem (JSONBin/
+   GitHub) só acontece quando o usuário clica em "Finalizar cobranças". */
+const COBR_KEY="ef_cobr_v1";
+function saveCobrLocal(){
+  try{ localStorage.setItem(COBR_KEY, JSON.stringify({cobr:COBR, dias:DIAS_REINCIDENCIA})); }
+  catch(e){ console.warn("saveCobrLocal:", e.message); }
+  const el=document.getElementById("cobrStatus");
+  if(el) el.innerHTML=`<i class="ti ti-device-floppy"></i> Alterações salvas neste navegador. Clique em "Finalizar cobranças" para sincronizar com a nuvem.`;
+}
+function loadCobrLocal(){
+  try{
+    const raw=localStorage.getItem(COBR_KEY);
+    if(!raw) return;
+    const data=JSON.parse(raw);
+    COBR={...COBR, ...(data.cobr||{})};
+    if(typeof data.dias==="number") DIAS_REINCIDENCIA=data.dias;
+  }catch(e){ console.warn("loadCobrLocal:", e.message); }
 }
 async function persistirCobranca(){
   const ok=await histSave();
@@ -1741,7 +1778,7 @@ function aplicarPrazo(){
   if(!v||v<1){toast("Informe um número de dias válido.");return;}
   DIAS_REINCIDENCIA=v;
   syncPrazoUI();
-  calcularAuditoria(); persistirCobranca(); refreshAll();
+  calcularAuditoria(); saveCobrLocal(); refreshAll();
   toast(`Prazo de reincidência ajustado para ${v} dias.`);
 }
 function aplicarPrazo2(){aplicarPrazo();}
@@ -1782,7 +1819,18 @@ function renderInsights(){
 
   const filNome=s=>esc((BASE[s]||{}).loja||s);
 
-  let h=`<div class="insight-grid">`;
+  // custo estimado de armazenagem gratuita: cada R$ parado custa uma taxa mensal
+  // de oportunidade/armazenagem (estimativa — ajuste HOLDING_RATE_MES se tiver o custo real)
+  const HOLDING_RATE_MES=0.012; // 1,2% a.m. — referência de custo de capital + armazenagem do setor
+  const custoArmazenagem=recs.reduce((s,r)=>s+r.valorParado*HOLDING_RATE_MES*(r.dias/30),0);
+  const diasMedio=tot?recs.reduce((s,r)=>s+r.dias,0)/tot:0;
+
+  let h=`<div class="insight crit hero" style="margin-bottom:18px">
+    <h3><i class="ti ti-building-warehouse"></i> O cliente está usando a Agroquima como depósito grátis</h3>
+    <div class="big">${fmtBRL(custoArmazenagem)}</div>
+    <p>Estimativa do custo de capital + armazenagem que a Agroquima está absorvendo ao manter <b>${fmtBRL(vParadoTot)}</b> em produto já vendido parado em média há <b>${Math.round(diasMedio)} dias</b> (taxa de referência de ${(HOLDING_RATE_MES*100).toFixed(1)}% a.m.; ajuste o cálculo se tiver o custo real da empresa). <b>${pct(vEntTot,vParadoTot)}</b> desse valor já foi pago pelo cliente — ou seja, ele já tem o dinheiro de volta na prática e só não retirou. Esse é o ponto a levar para a diretoria: não é falta de venda, é estoque alheio ocupando armazém, caminhão e capital da Agroquima de graça.</p></div>`;
+
+  h+=`<div class="insight-grid">`;
   // Pareto
   h+=`<div class="insight crit"><h3><i class="ti ti-flame"></i> Concentração de Pareto</h3>
     <div class="big">${fmtINT(n80)} pedidos = 80%</div>
@@ -1835,9 +1883,9 @@ function renderInsights(){
   const topFilEnt=topEnt[0];
   h+=`<div class="section-title">Parecer do auditor</div>
     <div class="parecer"><h3><i class="ti ti-clipboard-text"></i> Leitura para a diretoria</h3>
-    <p>A entrega futura da rede soma <b>${fmtBRL(vParadoTot)}</b> em <b>${fmtINT(tot)}</b> itens parados. Desse total, <b>${fmtBRL(vEntTot)}</b> (${pct(vEntTot,vParadoTot)}) já estão pagos — é entrega cobrável imediatamente, sem risco. Os outros <b>${fmtBRL(vRetTot)}</b> dependem de pagamento e não devem ser entregues.</p>
+    <p>A entrega futura da Agroquima soma <b>${fmtBRL(vParadoTot)}</b> em <b>${fmtINT(tot)}</b> itens parados, parados em média há <b>${Math.round(diasMedio)} dias</b> — isto representa um custo estimado de armazenagem/capital de <b>${fmtBRL(custoArmazenagem)}</b> que a empresa absorve sem necessidade. Desse total, <b>${fmtBRL(vEntTot)}</b> (${pct(vEntTot,vParadoTot)}) já estão pagos — é entrega cobrável imediatamente, sem risco, o cliente só não retirou. Os outros <b>${fmtBRL(vRetTot)}</b> dependem de pagamento e não devem ser entregues.</p>
     <p>A concentração é alta: <b>${topFilEnt?topFilEnt[0]+" — "+filNome(topFilEnt[0]):"—"}</b> sozinha responde por <b>${topFilEnt?fmtBRL(topFilEnt[1].ent):"—"}</b> do valor a liberar, e ${fmtINT(n80)} pedidos concentram 80% de tudo. Em valor, <b>${fmtBRL(faixa.c.v+faixa.d.v)}</b> está parado há mais de 180 dias — produto comprado caro que, entregue lá na frente, sai com margem defasada.</p>
-    <div class="rec"><b>Recomendação:</b> (1) cobrar de imediato as filiais campeãs de valor pago e parado — começando por ${topFilEnt?topFilEnt[0]:"—"}; (2) atacar os ${fmtINT(n80)} pedidos do Pareto antes do resto; (3) sobre os ${fmtBRL(atrV)} já atrasados, exigir entrega ou devolução; (4) acompanhar os clientes concentradores e os retidos com +180 dias para decidir entre forçar pagamento ou devolver.</div></div>`;
+    <div class="rec"><b>Recomendação:</b> (1) cobrar de imediato as filiais campeãs de valor pago e parado — começando por ${topFilEnt?topFilEnt[0]:"—"}; (2) atacar os ${fmtINT(n80)} pedidos do Pareto antes do resto; (3) sobre os ${fmtBRL(atrV)} já atrasados, exigir entrega ou devolução; (4) acompanhar os clientes concentradores e os retidos com +180 dias para decidir entre forçar pagamento ou devolver; (5) tratar o custo de armazenagem (item acima) como argumento direto na cobrança — o cliente está usando espaço e capital da Agroquima de graça.</div></div>`;
 
   box.innerHTML=h;
 }
@@ -1994,11 +2042,9 @@ Regra: entrega-se apenas o que está pago; saldo devedor permanece retido (no de
 
 Auditoria — Agroquima`;
 
-  const temEmail=Object.values(EMAILS_DIRETORIA).some(Boolean);
   document.getElementById("mEmailNote").style.display="block";
-  document.getElementById("mEmailNote").innerHTML= temEmail
-    ? "Os endereços cadastrados serão usados ao abrir no e-mail."
-    : "Para o botão <b>Abrir no e-mail</b> já vir com os destinatários preenchidos, cadastre os endereços em <code>EMAILS_DIRETORIA</code> / <code>EMAILS_PESSOAS</code> no código. Por ora, copie o texto e selecione os destinatários no seu e-mail.";
+  document.getElementById("mEmailNote").innerHTML=
+    `Diretoria, auditor responsável, gerente regional e supervisor da loja (<b>${esc(b.emailSupervisor||"sem e-mail cadastrado")}</b>) serão preenchidos automaticamente. Adicione manualmente o e-mail do gerente da loja (<b>${esc(b.gerente||"—")}</b>) antes de enviar.`;
 
   document.getElementById("modal").classList.add("on");
 }
@@ -2006,7 +2052,8 @@ function openMail(){
   const b=BASE[mailSigla]||{};
   const dests=[];
   Object.values(EMAILS_DIRETORIA).forEach(e=>{if(e)dests.push(e);});
-  [b.auditor,b.regional,b.gerente,b.supervisor].forEach(nome=>{if(nome&&EMAILS_PESSOAS[nome])dests.push(EMAILS_PESSOAS[nome]);});
+  [b.auditor,b.regional].forEach(nome=>{if(nome&&EMAILS_PESSOAS[nome])dests.push(EMAILS_PESSOAS[nome]);});
+  if(b.emailSupervisor) dests.push(b.emailSupervisor);
   const subject=encodeURIComponent(document.getElementById("mSubject").value);
   const body=encodeURIComponent(document.getElementById("mBody").value);
   window.location.href=`mailto:${dests.join(",")}?subject=${subject}&body=${body}`;
@@ -2015,7 +2062,7 @@ function openMail(){
 function copyMail(){
   const txt="Assunto: "+document.getElementById("mSubject").value+"\n\n"+document.getElementById("mBody").value;
   navigator.clipboard.writeText(txt).then(()=>toast("Texto copiado — itens marcados como cobrados."),()=>toast("Não foi possível copiar."));
-  marcarFilial(mailSigla, true); calcularAuditoria(); persistirCobranca(); refreshAll();
+  marcarFilial(mailSigla, true); calcularAuditoria(); saveCobrLocal(); refreshAll();
 }
 function closeModal(){document.getElementById("modal").classList.remove("on");}
 document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal();});
