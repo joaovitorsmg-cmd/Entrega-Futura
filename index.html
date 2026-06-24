@@ -289,8 +289,10 @@ tbody tr:last-child td{border-bottom:none}
 .note{font-size:11.5px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-top:6px;line-height:1.55}
 .note code{background:var(--bg3);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--brand)}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);
-  color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:300;transition:.3s;box-shadow:var(--sh-lg);opacity:0}
+  color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:300;transition:.3s;box-shadow:var(--sh-lg);opacity:0;display:flex;align-items:center;gap:14px}
 .toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+.toast .undo-btn{background:rgba(255,255,255,.18);border:none;color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.toast .undo-btn:hover{background:rgba(255,255,255,.3)}
 
 .menubtn{display:none;font-size:18px;padding:8px 10px}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199}
@@ -2338,17 +2340,36 @@ Auditoria — Agroquima`;
 
   document.getElementById("modal").classList.add("on");
 }
+let LAST_MARK_UNDO=null;
 function marcarItens(itens, silencioso){
   const hoje=new Date().toISOString().slice(0,10);
+  const prev={};
   let n=0;
   (itens||[]).forEach(r=>{
     const k=itemKey(r), c=COBR[k];
+    prev[k]=c?{...c}:undefined;
     if(c){ c.u=hoje; c.n=(c.n||1)+1; } else { COBR[k]={d:hoje,u:hoje,n:1,obs:""}; }
     n++;
   });
+  LAST_MARK_UNDO=n?{prev}:null;
   calcularAuditoria();
-  if(!silencioso){ saveCobrLocal(); refreshAll(); toast(`${n} itens marcados como cobrados.`); }
+  if(!silencioso){
+    saveCobrLocal(); refreshAll();
+    toast(`${n} itens marcados como cobrados.`, n?{label:"Desfazer",onClick:desfazerUltimaCobranca}:null);
+  }
   return n;
+}
+function desfazerUltimaCobranca(){
+  if(!LAST_MARK_UNDO){ toast("Nada para desfazer."); return; }
+  const {prev}=LAST_MARK_UNDO;
+  let n=0;
+  Object.entries(prev).forEach(([k,v])=>{
+    if(v===undefined) delete COBR[k]; else COBR[k]=v;
+    n++;
+  });
+  LAST_MARK_UNDO=null;
+  calcularAuditoria(); saveCobrLocal(); refreshAll();
+  toast(`${n} itens voltaram ao estado anterior.`);
 }
 function downloadExcelCobranca(){
   if(!MAIL_ITENS.length){ toast("Nenhum item para exportar."); return; }
@@ -2379,8 +2400,11 @@ function openMail(){
 }
 function copyMail(){
   const txt="Assunto: "+document.getElementById("mSubject").value+"\n\n"+document.getElementById("mBody").value;
-  navigator.clipboard.writeText(txt).then(()=>toast("Texto copiado — itens marcados como cobrados."),()=>toast("Não foi possível copiar."));
   marcarItens(MAIL_ITENS, true); calcularAuditoria(); saveCobrLocal(); refreshAll();
+  navigator.clipboard.writeText(txt).then(
+    ()=>toast("Texto copiado — itens marcados como cobrados.",{label:"Desfazer",onClick:desfazerUltimaCobranca}),
+    ()=>toast("Não foi possível copiar.")
+  );
 }
 function closeModal(){document.getElementById("modal").classList.remove("on");}
 document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal();});
@@ -2466,8 +2490,19 @@ function exportCSV(){
 
 /* ---------- toast ---------- */
 let toastT;
-function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("on");
-  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove("on"),2600);}
+function toast(msg, action){
+  const el=document.getElementById("toast");
+  el.innerHTML="";
+  el.appendChild(document.createTextNode(msg));
+  if(action){
+    const btn=document.createElement("button");
+    btn.className="undo-btn"; btn.textContent=action.label;
+    btn.onclick=()=>{ action.onClick(); el.classList.remove("on"); clearTimeout(toastT); };
+    el.appendChild(btn);
+  }
+  el.classList.add("on");
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove("on"),action?6000:2600);
+}
 
 /* restaura a base completa salva localmente (se houver), para não exigir
    reanexar o XLS a cada vez que a página é recarregada. Se este navegador nunca
