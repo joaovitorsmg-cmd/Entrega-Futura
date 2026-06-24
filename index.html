@@ -991,6 +991,10 @@ wireConfigPage();
 /* carrega o histórico já na abertura do painel, antes de qualquer importação */
 histLoad();
 
+/* restaura a base completa salva localmente (se houver), para não exigir
+   reanexar o XLS a cada vez que a página é recarregada */
+if(loadLocalSnapshot()) bootApp();
+
 /* registra a importação atual e roda a comparação com a anterior */
 async function registrarImportacao(){
   await histLoad();
@@ -1021,11 +1025,16 @@ async function registrarImportacao(){
   const ok = await histSave();
   // o COBR já foi carregado no histLoad — recalcula status e atualiza as telas
   calcularAuditoria();
-  renderResumo(); renderCobrar(); renderRetidos(); renderBase(); renderRecor();
-  renderGrupo("tblFiliais","filial",["sigla","auditor","regional"]);
+  renderResumo();
   renderAuditoria();
-  renderEvolucao(ok);
+  // só reconstrói as abas pesadas que já foram visitadas nesta sessão; as demais
+  // ficam para renderizar sob demanda (ver ensurePageRendered), mantendo a importação fluida
+  ["cobrar","retidos","base","recorrencia","filiais"].forEach(pg=>{ if(RENDERED_PAGES.has(pg)) PAGE_RENDERERS[pg](); });
+  lastSyncOk=ok;
+  if(RENDERED_PAGES.has("evolucao")) renderEvolucao(ok);
+  saveLocalSnapshot();
 }
+let lastSyncOk=null;
 
 function compararSnapshots(antItens, atualDet, dataAnt){
   const A = new Set(Object.keys(antItens));
@@ -1168,6 +1177,33 @@ function resetApp(){
   document.getElementById("intro").style.display="";
   document.getElementById("meta").style.display="none";
   document.getElementById("btnReload").style.display="none";
+  try{ localStorage.removeItem(LOCAL_KEY); }catch(e){}
+}
+
+/* ---------- persistência local da base completa: evita ter que reanexar o XLS a cada
+   recarregamento de página. Guarda só os campos já processados (muito menor que o XLS
+   original) — o JSONBin/GitHub continuam guardando apenas o histórico agregado/leve. ---------- */
+const LOCAL_KEY="ef_records_v1";
+function saveLocalSnapshot(){
+  try{
+    localStorage.setItem(LOCAL_KEY, JSON.stringify({
+      records: RECORDS,
+      dataRef: dataRef.toISOString(),
+      fileName: document.getElementById("metaFile").textContent
+    }));
+  }catch(e){ console.warn("saveLocalSnapshot:", e.message); }
+}
+function loadLocalSnapshot(){
+  try{
+    const raw=localStorage.getItem(LOCAL_KEY);
+    if(!raw) return false;
+    const data=JSON.parse(raw);
+    if(!data.records || !data.records.length) return false;
+    RECORDS=data.records.map(r=>({...r, emissao:r.emissao?new Date(r.emissao):null}));
+    dataRef=new Date(data.dataRef);
+    document.getElementById("metaFile").textContent=data.fileName||"Sessão restaurada";
+    return true;
+  }catch(e){ console.warn("loadLocalSnapshot:", e.message); return false; }
 }
 
 /* ============================================================
@@ -1184,7 +1220,7 @@ const PAGE_RENDERERS={
   regionais:()=>renderGrupo("tblRegionais","regional",[]),
   recorrencia:()=>renderRecor(),
   conferencia:()=>renderConferencia(),
-  evolucao:()=>renderEvolucao(null,true)
+  evolucao:()=>renderEvolucao(lastSyncOk,true)
 };
 let RENDERED_PAGES=new Set();
 function ensurePageRendered(pg){
