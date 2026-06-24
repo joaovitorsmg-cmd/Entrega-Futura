@@ -386,6 +386,7 @@ tbody tr:last-child td{border-bottom:none}
     <button class="nav-item" data-pg="auditoria"><i class="ti ti-clipboard-check"></i> Auditoria de cobrança <span class="badge" id="badgeReinc">0</span></button>
     <button class="nav-item" data-pg="retidos"><i class="ti ti-lock"></i> Retidos</button>
     <button class="nav-item" data-pg="recorrencia"><i class="ti ti-users"></i> Clientes recorrentes</button>
+    <button class="nav-item" data-pg="consulta"><i class="ti ti-search"></i> Consultar cobrança</button>
     <div class="nav-group">Responsabilização</div>
     <button class="nav-item" data-pg="filiais"><i class="ti ti-building-store"></i> Por filial</button>
     <button class="nav-item" data-pg="auditores"><i class="ti ti-user-check"></i> Por auditor</button>
@@ -483,6 +484,22 @@ tbody tr:last-child td{border-bottom:none}
         <p>Clientes com vários itens ou alto valor em aberto. Clique numa linha para ver todos os pedidos do cliente.</p></div>
       <div class="filterbar" id="fbRecor"></div>
       <div class="tablewrap"><table id="tblRecor"></table></div>
+    </div>
+
+    <!-- CONSULTAR COBRANÇA -->
+    <div class="page" id="pg-consulta">
+      <div class="page-head"><h2><i class="ti ti-search"></i> Consultar cobrança</h2>
+        <p>Quanto e o que já foi cobrado de uma filial, e desde quando — resposta rápida para a diretoria, com o mínimo de cliques.</p></div>
+      <div class="filterbar">
+        <select id="selConsultaFilial" onchange="consultarFilial(this.value)" style="min-width:260px">
+          <option value="">Selecione uma filial…</option>
+        </select>
+      </div>
+      <div id="consultaVazio" style="margin-top:14px;color:var(--muted)">Selecione uma filial acima para ver o histórico de cobrança.</div>
+      <div id="consultaConteudo" style="display:none">
+        <div class="cards" id="consultaCards" style="margin-top:14px"></div>
+        <div class="tablewrap full" style="margin-top:14px"><table class="gtable" id="tblConsulta"></table></div>
+      </div>
     </div>
 
     <!-- POR FILIAL -->
@@ -1068,7 +1085,7 @@ async function registrarImportacao(isNewImport){
     calcularAuditoria();
     renderResumo();
     renderAuditoria();
-    ["cobrar","retidos","base","recorrencia","filiais"].forEach(pg=>{ if(RENDERED_PAGES.has(pg)) PAGE_RENDERERS[pg](); });
+    ["cobrar","retidos","base","recorrencia","filiais","consulta"].forEach(pg=>{ if(RENDERED_PAGES.has(pg)) PAGE_RENDERERS[pg](); });
     if(RENDERED_PAGES.has("evolucao")) renderEvolucao(true);
     return;
   }
@@ -1103,7 +1120,7 @@ async function registrarImportacao(isNewImport){
   renderAuditoria();
   // só reconstrói as abas pesadas que já foram visitadas nesta sessão; as demais
   // ficam para renderizar sob demanda (ver ensurePageRendered), mantendo a importação fluida
-  ["cobrar","retidos","base","recorrencia","filiais"].forEach(pg=>{ if(RENDERED_PAGES.has(pg)) PAGE_RENDERERS[pg](); });
+  ["cobrar","retidos","base","recorrencia","filiais","consulta"].forEach(pg=>{ if(RENDERED_PAGES.has(pg)) PAGE_RENDERERS[pg](); });
   lastSyncOk=ok;
   if(RENDERED_PAGES.has("evolucao")) renderEvolucao(ok);
   saveLocalSnapshot();
@@ -1233,6 +1250,7 @@ function refreshAll(){
   renderAuditoria(); renderRecor();
   renderGrupo("tblFiliais","filial",["sigla","auditor","regional"]);
   ["cobrar","retidos","base","recorrencia","filiais"].forEach(pg=>RENDERED_PAGES.add(pg));
+  if(RENDERED_PAGES.has("consulta")) renderConsulta();
 }
 
 
@@ -1354,6 +1372,7 @@ const PAGE_RENDERERS={
   auditores:()=>renderGrupo("tblAuditores","auditor",[]),
   regionais:()=>renderGrupo("tblRegionais","regional",[]),
   recorrencia:()=>renderRecor(),
+  consulta:()=>renderConsulta(),
   conferencia:()=>renderConferencia(),
   evolucao:()=>renderEvolucao(lastSyncOk,true)
 };
@@ -1699,7 +1718,7 @@ function renderGrupo(tblId,key,extra){
   h+=`</tr></thead><tbody>`;
   rows.forEach((v,i)=>{
     h+=`<tr><td><span class="rank ${i===0?'top':''}">${i+1}</span></td>`;
-    if(key==="filial") h+=`<td><span class="sg" style="color:var(--brand)">${esc(v.extra.sigla||"")}</span> <span class="strong">${esc(v.key)}</span></td>`;
+    if(key==="filial") h+=`<td><span class="sg" style="color:var(--brand)">${esc(v.extra.sigla||"")}</span> <span class="strong">${esc(v.key)}</span> <button class="btn ghost sm" title="Consultar cobrança desta filial" onclick="event.stopPropagation();gotoPage('consulta');consultarFilial('${esc(v.extra.sigla||"")}')"><i class="ti ti-search"></i></button></td>`;
     else h+=`<td class="strong">${esc(v.key)}</td>`;
     extraCols.forEach(e=>h+=`<td class="muted">${esc(v.extra[e]||"")}</td>`);
     h+=`<td class="num">${fmtINT(v.n)}</td>
@@ -1715,6 +1734,79 @@ function doSortGrp(tblId,key,extraJson,col){
   const extra=JSON.parse(extraJson);
   const s=sortState[tblId];sortState[tblId]=(s&&s.k===col)?{k:col,dir:-s.dir}:{k:col,dir:1};
   renderGrupo(tblId,key,extra);
+}
+
+/* ============================================================
+   CONSULTAR COBRANÇA — resposta rápida "quanto e desde quando já
+   cobrei da filial X", agregando o histórico de COBR sobre os itens
+   atualmente em aberto daquela filial.
+   ============================================================ */
+let CONSULTA_SIGLA="";
+function dadosCobrancaFilial(sigla){
+  const itensFilial=RECORDS.filter(r=>r.sigla===sigla);
+  const itens=itensFilial.filter(r=>r.status!=="ret" && r.audit && r.audit.st!=="nao");
+  const valorTotal=itens.reduce((s,r)=>s+r.valorEntregar,0);
+  const vezesTotal=itens.reduce((s,r)=>s+(r.audit.vezes||0),0);
+  const datasPrimeira=itens.map(r=>r.audit.primeira).filter(Boolean);
+  const datasUltima=itens.map(r=>r.audit.dataCobr).filter(Boolean);
+  const primeira=datasPrimeira.length?datasPrimeira.reduce((a,b)=>a<b?a:b):null;
+  const ultima=datasUltima.length?datasUltima.reduce((a,b)=>a>b?a:b):null;
+  const reincidentes=itens.filter(r=>r.audit.st==="reincidente").length;
+  const naoCobrados=itensFilial.filter(r=>r.status!=="ret" && r.audit && r.audit.st==="nao").length;
+  return {sigla,itens,totalFilial:itensFilial.length,valorTotal,vezesTotal,primeira,ultima,
+    reincidentes,aguardando:itens.length-reincidentes,naoCobrados};
+}
+function popularSelectConsulta(){
+  const sel=document.getElementById("selConsultaFilial");
+  if(!sel) return;
+  const atual=sel.value;
+  const siglas=uniq("sigla");
+  sel.innerHTML=`<option value="">Selecione uma filial…</option>`+
+    siglas.map(s=>{const f=RECORDS.find(r=>r.sigla===s);return `<option value="${esc(s)}">${esc(s)} — ${esc(f?f.filial:"")}</option>`;}).join("");
+  if(atual && siglas.includes(atual)) sel.value=atual;
+}
+function consultarFilial(sigla){
+  popularSelectConsulta();
+  const sel=document.getElementById("selConsultaFilial");
+  if(sel) sel.value=sigla||"";
+  CONSULTA_SIGLA=sigla||"";
+  renderConsulta();
+}
+function renderConsulta(){
+  popularSelectConsulta();
+  const sel=document.getElementById("selConsultaFilial");
+  if(sel && CONSULTA_SIGLA) sel.value=CONSULTA_SIGLA;
+  const sigla=CONSULTA_SIGLA;
+  const vazio=document.getElementById("consultaVazio"), conteudo=document.getElementById("consultaConteudo");
+  if(!sigla){
+    if(vazio) vazio.style.display="";
+    if(conteudo) conteudo.style.display="none";
+    return;
+  }
+  if(vazio) vazio.style.display="none";
+  if(conteudo) conteudo.style.display="";
+  const d=dadosCobrancaFilial(sigla);
+  const filial=BASE[sigla]?BASE[sigla].loja:(RECORDS.find(r=>r.sigla===sigla)||{}).filial||sigla;
+  document.getElementById("consultaCards").innerHTML=
+    kpi("","Já cobrado (valor)","cash",fmtBRL(d.valorTotal),`${fmtINT(d.itens.length)} item(ns) com cobrança registrada`)+
+    kpi("","Cobrado desde","calendar-event",d.primeira?fmtDATE(new Date(d.primeira)):"—",d.ultima?`última cobrança em ${fmtDATE(new Date(d.ultima))}`:"sem registro")+
+    kpi("","Vezes cobrado","repeat",fmtINT(d.vezesTotal),`${fmtINT(d.aguardando)} aguardando · ${fmtINT(d.reincidentes)} reincidente(s)`)+
+    kpi(d.naoCobrados?"r":"g","Itens sem cobrança","alert-circle",fmtINT(d.naoCobrados),"ainda não marcados como cobrados");
+  const itensOrd=[...d.itens].sort((a,b)=>(b.audit.dataCobr||"").localeCompare(a.audit.dataCobr||""));
+  let h=`<thead><tr><th>Status</th><th>Pedido</th><th>Cliente</th><th>Produto</th>
+    <th class="num">Vezes</th><th>1ª cobrança</th><th>Última cobrança</th><th class="num">Valor a entregar</th></tr></thead><tbody>`;
+  if(!itensOrd.length){
+    h+=`<tr><td colspan="8" class="muted" style="text-align:center;padding:18px">Nenhum item com cobrança registrada para ${esc(sigla)}.</td></tr>`;
+  }
+  itensOrd.forEach(r=>{
+    h+=`<tr><td><span class="pill ${AUD_PILL[r.audit.st]}">${AUD_LABEL[r.audit.st]}</span></td>
+      <td>${esc(r.pedido)}</td><td>${esc(r.cliente||"")}</td><td>${esc(r.produto||r.codProd||"")}</td>
+      <td class="num">${fmtINT(r.audit.vezes||0)}</td>
+      <td>${r.audit.primeira?fmtDATE(new Date(r.audit.primeira)):"—"}</td>
+      <td>${r.audit.dataCobr?fmtDATE(new Date(r.audit.dataCobr)):"—"}</td>
+      <td class="money">${fmtBRL(r.valorEntregar)}</td></tr>`;
+  });
+  document.getElementById("tblConsulta").innerHTML=h+"</tbody>";
 }
 
 /* ============================================================
