@@ -999,8 +999,14 @@ wireConfigPage();
 histLoad();
 
 /* restaura a base completa salva localmente (se houver), para não exigir
-   reanexar o XLS a cada vez que a página é recarregada */
-if(loadLocalSnapshot()) bootApp();
+   reanexar o XLS a cada vez que a página é recarregada. Se este navegador nunca
+   importou nada, busca a última base publicada no GitHub — assim qualquer pessoa
+   que abrir o link vê a mesma base, sem precisar importar o XLS nela mesma. */
+if(loadLocalSnapshot()){
+  bootApp();
+}else{
+  loadBaseFromGithub().then(ok=>{ if(ok) bootApp(); });
+}
 
 /* registra a importação atual e roda a comparação com a anterior */
 async function registrarImportacao(){
@@ -1040,6 +1046,11 @@ async function registrarImportacao(){
   lastSyncOk=ok;
   if(RENDERED_PAGES.has("evolucao")) renderEvolucao(ok);
   saveLocalSnapshot();
+  const cfg=getCfg();
+  if(cfg.ghToken && cfg.ghRepo){
+    const pubOk = await publishBaseToGithub();
+    if(!pubOk) toast("Importação salva neste navegador, mas não consegui publicar a base para todos no GitHub.");
+  }
 }
 let lastSyncOk=null;
 
@@ -1211,6 +1222,41 @@ function loadLocalSnapshot(){
     document.getElementById("metaFile").textContent=data.fileName||"Sessão restaurada";
     return true;
   }catch(e){ console.warn("loadLocalSnapshot:", e.message); return false; }
+}
+
+/* ---------- base compartilhada via GitHub: assim qualquer pessoa que abrir o link vê a
+   mesma base, sem precisar importar o XLS nela mesma (o localStorage acima é só por navegador) ---------- */
+const BASE_DATA_PATH="data/base-atual.json";
+async function publishBaseToGithub(){
+  const cfg=getCfg();
+  if(!cfg.ghToken || !cfg.ghRepo) return false;
+  const api=`https://api.github.com/repos/${cfg.ghRepo}`;
+  const headers={"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
+  try{
+    let sha;
+    const existing=await fetch(`${api}/contents/${BASE_DATA_PATH}?ref=main`,{headers});
+    if(existing.ok) sha=(await existing.json()).sha;
+    const payload={records:RECORDS, dataRef:dataRef.toISOString(), fileName:document.getElementById("metaFile").textContent};
+    const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    const putRes=await fetch(`${api}/contents/${BASE_DATA_PATH}`,{method:"PUT",headers,
+      body:JSON.stringify({message:"Atualiza base atual do Entrega Futura", content, branch:"main", ...(sha?{sha}:{})})});
+    if(!putRes.ok) throw new Error("HTTP "+putRes.status);
+    return true;
+  }catch(e){ console.warn("publishBaseToGithub:", e.message); return false; }
+}
+async function loadBaseFromGithub(){
+  const cfg=getCfg();
+  if(!cfg.ghRepo) return false;
+  try{
+    const res=await fetch(`https://raw.githubusercontent.com/${cfg.ghRepo}/main/${BASE_DATA_PATH}?t=${Date.now()}`);
+    if(!res.ok) return false;
+    const data=await res.json();
+    if(!data.records || !data.records.length) return false;
+    RECORDS=data.records.map(r=>({...r, emissao:r.emissao?new Date(r.emissao):null}));
+    dataRef=new Date(data.dataRef);
+    document.getElementById("metaFile").textContent=data.fileName||"Base compartilhada";
+    return true;
+  }catch(e){ console.warn("loadBaseFromGithub:", e.message); return false; }
 }
 
 /* ============================================================
