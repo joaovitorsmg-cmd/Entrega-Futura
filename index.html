@@ -912,11 +912,14 @@ async function histLoad(){
     }else{
       setSync("empty");
     }
+    // o snapshot de detalhe (usado só pela Conferência) não vai mais para a nuvem
+    // (fica grande demais para o plano grátis do JSONBin) — usamos a versão local.
+    loadUltimoDetalheLocal();
     // mescla cobranças feitas neste navegador e ainda não finalizadas (sincronizadas)
     loadCobrLocal();
     syncPrazoUI();
     return true;
-  }catch(e){ console.warn("histLoad:", e.message); setSync("err"); loadCobrLocal(); syncPrazoUI(); return false; }
+  }catch(e){ console.warn("histLoad:", e.message); setSync("err"); loadCobrLocal(); loadUltimoDetalheLocal(); syncPrazoUI(); return false; }
 }
 
 /* limite seguro do plano grátis do JSONBin (~100KB); deixamos margem */
@@ -925,7 +928,9 @@ const JSONBIN_SAFE_LIMIT = 80000;
 async function histSave(){
   const cfg = getCfg();
   if(!cfg.jsonbinKey || !cfg.jsonbinBin){ setSync("noconfig"); return false; }
-  const full = { [HIST_FIELD]: { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
+  // ultimoDetalhe fica de fora do payload da nuvem: é só usado para a Conferência
+  // local e, sozinho, já passa de várias vezes o limite seguro do JSONBin grátis.
+  const full = { [HIST_FIELD]: { ...HIST, ultimoDetalhe: null, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
   const body = JSON.stringify(full);
   if(body.length <= JSONBIN_SAFE_LIMIT){
     try{
@@ -1124,6 +1129,7 @@ async function registrarImportacao(isNewImport){
 
   // guarda o detalhe atual como "último" para a próxima comparação
   HIST.ultimoDetalhe = { data: hoje, itens: detAtual };
+  saveUltimoDetalheLocal();
 
   // upsert do agregado por mês de emissão (permite pesquisar pendência por Ano/Mês)
   HIST.meses = { ...HIST.meses, ...snapshotPorMes(RECORDS, hoje) };
@@ -1258,6 +1264,21 @@ function loadCobrLocal(){
     COBR={...COBR, ...(data.cobr||{})};
     if(typeof data.dias==="number") DIAS_REINCIDENCIA=data.dias;
   }catch(e){ console.warn("loadCobrLocal:", e.message); }
+}
+/* HIST.ultimoDetalhe (snapshot completo p/ a Conferência) também fica só neste
+   navegador — sozinho já passa do limite do plano grátis do JSONBin, então não
+   entra no payload enviado para a nuvem (ver histSave/histLoad). */
+const ULTIMO_DETALHE_KEY="ef_ultimo_detalhe_v1";
+function saveUltimoDetalheLocal(){
+  try{ localStorage.setItem(ULTIMO_DETALHE_KEY, JSON.stringify(HIST.ultimoDetalhe)); }
+  catch(e){ console.warn("saveUltimoDetalheLocal:", e.message); }
+}
+function loadUltimoDetalheLocal(){
+  try{
+    const raw=localStorage.getItem(ULTIMO_DETALHE_KEY);
+    if(!raw) return;
+    HIST.ultimoDetalhe = JSON.parse(raw);
+  }catch(e){ console.warn("loadUltimoDetalheLocal:", e.message); }
 }
 async function persistirCobranca(){
   const ok=await histSave();
