@@ -2467,9 +2467,11 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
 /* ---------- PDF de 1 página por filial ---------- */
 function gerarPDFFilial(){
   const sigla=mailSigla, b=BASE[sigla]||{};
+  // usa exatamente o conjunto filtrado que abriu o modal (MAIL_ITENS já respeita todos os filtros ativos)
+  const cobrarAll=[...MAIL_ITENS].sort((a,b)=>b.valorEntregar-a.valorEntregar);
+  // itens = cobrarAll + retidos do mesmo escopo para os KPIs de cabeçalho
   let itens=RECORDS.filter(r=>r.sigla===sigla);
   if(ULT_FILTRO_LINHA.length) itens=itens.filter(r=>ULT_FILTRO_LINHA.includes(r.linha));
-  const cobrarAll=itens.filter(r=>r.status!=="ret").sort((a,b)=>b.valorEntregar-a.valorEntregar);
   const vEnt=cobrarAll.reduce((s,r)=>s+r.valorEntregar,0);
   const vRet=itens.filter(r=>r.status==="ret").reduce((s,r)=>s+r.valorRetido,0);
   const atr=itens.filter(r=>r.atrasado).length;
