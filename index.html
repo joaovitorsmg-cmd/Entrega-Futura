@@ -61,6 +61,8 @@ button{font-family:inherit;cursor:pointer}
 .btn:hover{background:var(--bg2);border-color:var(--brand)}
 .btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand2));border-color:transparent;color:#fff;box-shadow:0 2px 8px var(--brand-glow)}
 .btn.primary:hover{filter:brightness(1.06)}
+.btn.danger{background:#d32f2f;border-color:transparent;color:#fff}
+.btn.danger:hover{background:#b71c1c}
 .btn.ghost{background:transparent;border-color:transparent;color:var(--text2)}
 .btn.ghost:hover{background:var(--bg3);color:var(--text)}
 .btn i{font-size:16px}
@@ -461,9 +463,14 @@ tbody tr:last-child td{border-bottom:none}
       <div class="page-head"><h2><i class="ti ti-clipboard-check"></i> Auditoria de cobrança</h2>
         <p>O que já foi cobrado e o que não foi. Evita cobrar duas vezes o mesmo item e expõe quem foi cobrado e ignorou.</p></div>
       <div id="cobrStatus" class="note" style="margin-bottom:14px"></div>
-      <button class="btn primary" id="btnFinalizarCobr" onclick="persistirCobranca()" style="margin-bottom:14px">
-        <i class="ti ti-cloud-upload"></i> Finalizar cobranças (sincronizar com a nuvem)
-      </button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn primary" id="btnFinalizarCobr" onclick="persistirCobranca()">
+          <i class="ti ti-cloud-upload"></i> Finalizar cobranças (sincronizar com a nuvem)
+        </button>
+        <button class="btn danger" onclick="zerarCobranças()">
+          <i class="ti ti-trash"></i> Zerar cobranças
+        </button>
+      </div>
       <div class="cards" id="cardsAudit" style="margin-bottom:18px"></div>
       <div class="insight" style="margin-bottom:18px">
         <p style="margin-bottom:9px"><span class="pill nao">Não cobrado</span> &nbsp; está parado e nunca foi cobrado. <b>É o que você deve cobrar agora.</b></p>
@@ -1279,6 +1286,15 @@ function loadUltimoDetalheLocal(){
     if(!raw) return;
     HIST.ultimoDetalhe = JSON.parse(raw);
   }catch(e){ console.warn("loadUltimoDetalheLocal:", e.message); }
+}
+function zerarCobranças(){
+  if(!confirm("Zerar todas as cobranças registradas? Isso apaga o histórico de cobranças deste dispositivo e da nuvem. Esta ação não pode ser desfeita.")) return;
+  COBR={};
+  saveCobrLocal();
+  calcularAuditoria();
+  refreshAll();
+  histSave();
+  toast("Todas as cobranças foram zeradas.");
 }
 async function persistirCobranca(){
   const ok=await histSave();
@@ -2405,6 +2421,9 @@ function downloadExcelCobranca(){
   if(!MAIL_ITENS.length){ toast("Nenhum item para exportar."); return; }
   const data=MAIL_ITENS.map(r=>({
     "Pedido": r.pedido,
+    "Cliente": r.cliente,
+    "Produto": r.produto,
+    "Saldo a Entregar": r.saldo,
     "Quantidade": r.qtdEntregar,
     "Dias Pendentes": r.dias,
     "Valor a Entregar": r.valorEntregar
