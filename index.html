@@ -327,9 +327,11 @@ tbody tr:last-child td{border-bottom:none}
   .filterbar{padding:10px;gap:8px}
   .filterbar>*{flex:1 1 auto;min-width:120px}
   .modal-bg{padding:0;align-items:stretch}
-  .modal{max-width:100%;width:100%;border-radius:0;min-height:100%}
+  .modal{max-width:100%;width:100%;border-radius:0;min-height:100%;display:flex;flex-direction:column}
   .modal .body{max-height:none;flex:1}
-  .modal footer{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+  .modal footer{padding-bottom:calc(12px + env(safe-area-inset-bottom));flex-wrap:wrap;gap:8px}
+  .modal footer .btn,.modal footer .btn.ghost,.modal footer .btn.primary{padding:8px 12px;font-size:12px;flex:1 1 auto;justify-content:center;text-align:center}
+  .modal footer>div:first-child{flex:1 1 100%;font-size:10px}
   .tablewrap{max-height:none}
   .btn{padding:10px 14px;font-size:14px}
   .nav-item{padding:13px 18px;font-size:14px}
@@ -1594,6 +1596,9 @@ function buildFilters(){
     wireFilter(id);
   }
   bar("fbCobrar"); bar("fbRetidos"); bar("fbBase");
+  // ativa "Só atrasados" por padrão na aba Cobrar agora
+  const soAtrChip = document.querySelector("#fbCobrar .chip[data-f='soatr']");
+  if(soAtrChip) soAtrChip.classList.add("on");
   // recorrência
   document.getElementById("fbRecor").innerHTML=`
     <div class="grp"><label>Buscar cliente</label><input type="text" data-f="busca" placeholder="nome do cliente…"></div>
