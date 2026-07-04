@@ -89,8 +89,7 @@ button{font-family:inherit;cursor:pointer}
 .syncpill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;
   font-weight:700;border:1px solid var(--border-2);background:var(--bg2);color:var(--text2);margin-right:10px;white-space:nowrap}
 .syncpill.ok{color:var(--green-dk);border-color:var(--green)}
-.syncpill.empty{color:#5b8cff;border-color:#5b8cff}
-.syncpill.ghdirect{color:#caa23c;border-color:#caa23c}
+.syncpill.empty{color:var(--text2);border-color:var(--border-2)}
 .syncpill.err{color:var(--red-dk);border-color:var(--red)}
 .card-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;box-shadow:var(--sh)}
 .card-box label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
@@ -586,10 +585,10 @@ tbody tr:last-child td{border-bottom:none}
     <!-- CONFIGURAÇÃO -->
     <div class="page" id="pg-config">
       <div class="page-head"><h2><i class="ti ti-settings"></i> Configuração</h2>
-        <p>Sincronização com a nuvem (JSONBin) e fallback automático direto no GitHub quando o histórico fica grande demais para o plano grátis.</p></div>
+        <p>Sincronização exclusiva via GitHub. Histórico, cobranças e base atual gravados direto no repositório — sem dependências externas.</p></div>
 
       <div class="insight" id="cfgInfo">
-        <p><b>Sincronização automática com fallback para o GitHub:</b> a cada importação, o painel tenta publicar o histórico completo direto na nuvem (JSONBin). Quando cabe no limite do plano grátis (~100KB), todo mundo vê na hora. Quando o histórico fica grande demais: o painel grava o arquivo direto na branch principal do GitHub, sem criar branch nem Pull Request. Sem Token do GitHub configurado, o painel só avisa que não conseguiu sincronizar; ele nunca perde os dados desta sessão.</p>
+        <p><b>Sincronização exclusiva via GitHub:</b> a cada importação, o painel grava o histórico completo (semanas, cobranças, meses) e a base atual diretamente na branch principal do repositório — sem serviços externos. Qualquer usuário que abrir o link verá a posição mais recente sem precisar importar o arquivo. A leitura é pública (sem token); a escrita exige um PAT fine-grained com <b>Contents: Read and write</b>.</p>
       </div>
 
       <div class="card-box" style="margin-bottom:16px">
@@ -603,37 +602,23 @@ tbody tr:last-child td{border-bottom:none}
 
       <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start">
         <div class="card-box">
-          <h3 style="margin-top:0"><i class="ti ti-key"></i> Configuração</h3>
-          <label>Master Key do JSONBin</label>
-          <div style="display:flex;gap:8px">
-            <input type="password" id="cfgJsonbinKey" style="flex:1">
-            <button class="btn ghost" id="cfgToggleKey" title="Mostrar / ocultar chave"><i class="ti ti-eye"></i></button>
-          </div>
-          <p class="muted" style="margin:4px 0 12px">Guardada apenas neste navegador (localStorage). Nunca sai do seu computador.</p>
+          <h3 style="margin-top:0"><i class="ti ti-brand-github"></i> Configuração GitHub</h3>
 
-          <label>Bin ID</label>
+          <label>Token do GitHub (fine-grained PAT)</label>
           <div style="display:flex;gap:8px">
-            <input type="text" id="cfgJsonbinBin" style="flex:1">
-            <button class="btn ghost" id="cfgCopyBin" title="Copiar Bin ID"><i class="ti ti-copy"></i></button>
-          </div>
-
-          <label style="margin-top:12px;display:block">Token do GitHub (fine-grained, fallback de PR)</label>
-          <div style="display:flex;gap:8px">
-            <input type="password" id="cfgGhToken" style="flex:1">
+            <input type="password" id="cfgGhToken" style="flex:1" placeholder="github_pat_…">
             <button class="btn ghost" id="cfgToggleTok" title="Mostrar / ocultar token"><i class="ti ti-eye"></i></button>
           </div>
-          <p class="muted" style="margin:4px 0 12px">Use um PAT fine-grained restrito a este repositório, com permissão de <b>Contents: Read and write</b> + <b>Pull requests: Read and write</b>. O token só fica no navegador onde for configurado, nunca é publicado.</p>
+          <p class="muted" style="margin:4px 0 12px">Gere em <b>GitHub → Settings → Developer settings → Fine-grained tokens</b>. Restrinja ao repositório abaixo e marque <b>Contents: Read and write</b>. O token fica só neste navegador, nunca é publicado.</p>
 
           <label>Repositório (owner/repo)</label>
-          <input type="text" id="cfgGhRepo" placeholder="joaovitorsmg-cmd/Entrega-Futura">
+          <input type="text" id="cfgGhRepo" placeholder="joaovitorsmg-cmd/Entrega-Futura" style="width:100%;margin-bottom:14px">
 
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
-            <button class="btn" id="cfgCreateBin"><i class="ti ti-cloud-plus"></i> Criar Bin</button>
-            <button class="btn ghost" id="cfgTestJsonbin"><i class="ti ti-plug-connected"></i> Testar conexão</button>
-            <button class="btn ghost" id="cfgTestGithub"><i class="ti ti-brand-github"></i> Testar GitHub</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn ghost" id="cfgTestGithub"><i class="ti ti-plug-connected"></i> Testar conexão</button>
             <button class="btn primary" id="cfgSave"><i class="ti ti-device-floppy"></i> Salvar</button>
           </div>
-          <div id="cfgTestResult" class="note" style="margin-top:12px"></div>
+          <div id="cfgTestResult" class="note" style="margin-top:12px;display:none"></div>
         </div>
 
         <div class="card-box">
@@ -641,11 +626,10 @@ tbody tr:last-child td{border-bottom:none}
           <div id="cfgStatusBox"></div>
           <p class="muted" style="margin-top:14px">Indicadores do selo no topo:</p>
           <ul class="muted" style="padding-left:18px;line-height:1.7">
-            <li><b style="color:var(--green)">Sincronizado</b> — dados gravados direto na nuvem.</li>
-            <li><b style="color:var(--blue,#5b8cff)">Conectado · nuvem vazia</b> — conexão ok, nenhuma importação registrada ainda.</li>
-            <li><b style="color:#caa23c">Publicado direto no GitHub</b> — histórico grande demais para o JSONBin; o arquivo foi gravado direto na branch principal do repositório.</li>
-            <li><b style="color:var(--red)">Erro de sync</b> — não foi possível gravar em nenhum dos dois destinos.</li>
-            <li><b class="muted">Sem config</b> — Master Key/Bin ID não configurados.</li>
+            <li><b style="color:var(--green-dk)">GitHub · sincronizado</b> — histórico e cobranças gravados no repositório.</li>
+            <li><b style="color:var(--text2)">GitHub · sem histórico</b> — repositório acessível, nenhuma importação registrada ainda.</li>
+            <li><b style="color:var(--red-dk)">Erro de sync</b> — falha ao gravar. Verifique token e permissões.</li>
+            <li><b class="muted">Sem config</b> — token ou repositório não configurados.</li>
           </ul>
         </div>
       </div>
@@ -750,11 +734,9 @@ initTheme();
 let RECORDS = [];
 let dataRef = new Date();
 
-/* ---------- CONFIGURAÇÃO (JSONBin + GitHub) — editável na tela "Configuração", guardada no localStorage ---------- */
+/* ---------- CONFIGURAÇÃO (GitHub) — editável na tela "Configuração", guardada no localStorage ---------- */
 const CFG_KEY = "ef_config_v1";
 const CFG_DEFAULT = {
-  jsonbinBin: "6a3b3105da38895dfef4d61b",
-  jsonbinKey: "$2a$10$NhmXfS0QZiXUxosdImwfGuw6SSpu/ofmat/2kSNj9YKW8I4beCIpq",
   ghToken: "",
   ghRepo: "joaovitorsmg-cmd/Entrega-Futura"
 };
@@ -788,7 +770,7 @@ function snapshotDetalhe(recs){
   recs.forEach(r => { d[itemKey(r)] = {s:r.saldo, c:r.cliente, p:r.produto, f:r.sigla, ped:r.pedido, vu:r.vlrUnit}; });
   return d;
 }
-/* agregado leve por filial (cabe ~1 ano no JSONBin) */
+/* agregado leve por filial — histórico anual no GitHub */
 function snapshotAgregado(recs){
   const a = {};
   recs.forEach(r => {
@@ -955,16 +937,17 @@ const STAT_LABEL={total:"Cobrar total",parc:"Cobrar parcial",ret:"Retido"};
 function pill(s){return `<span class="pill ${s}">${STAT_LABEL[s]}</span>`;}
 
 /* ============================================================
-   HISTÓRICO: carregar / salvar (JSONBin) + comparação
+   HISTÓRICO: carregar / salvar (GitHub) + comparação
    ============================================================ */
 async function histLoad(){
   const cfg = getCfg();
-  if(!cfg.jsonbinKey || !cfg.jsonbinBin){ setSync("noconfig"); loadCobrLocal(); syncPrazoUI(); return false; }
+  if(!cfg.ghRepo){ setSync("noconfig"); loadCobrLocal(); syncPrazoUI(); return false; }
   try{
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.jsonbinBin}/latest`, {
-      headers: {"X-Master-Key": cfg.jsonbinKey, "X-Bin-Meta": "false"}
-    });
-    if(!res.ok) throw new Error("HTTP "+res.status);
+    const res = await fetch(`https://raw.githubusercontent.com/${cfg.ghRepo}/main/data/historico.json?t=${Date.now()}`);
+    if(!res.ok){
+      if(res.status === 404){ setSync("empty"); loadCobrLocal(); syncPrazoUI(); return false; }
+      throw new Error("HTTP "+res.status);
+    }
     const data = await res.json();
     const node = (data && data[HIST_FIELD]) ? data[HIST_FIELD] : null;
     if(node){
@@ -977,45 +960,22 @@ async function histLoad(){
     }else{
       setSync("empty");
     }
-    // o snapshot de detalhe (usado só pela Conferência) não vai mais para a nuvem
-    // (fica grande demais para o plano grátis do JSONBin) — usamos a versão local.
-    loadUltimoDetalheLocal();
-    // mescla cobranças feitas neste navegador e ainda não finalizadas (sincronizadas)
+    // mescla cobranças feitas neste navegador e ainda não finalizadas
     loadCobrLocal();
     syncPrazoUI();
     return true;
   }catch(e){ console.warn("histLoad:", e.message); setSync("err"); loadCobrLocal(); loadUltimoDetalheLocal(); syncPrazoUI(); return false; }
 }
 
-/* limite seguro do plano grátis do JSONBin (~100KB); deixamos margem */
-const JSONBIN_SAFE_LIMIT = 80000;
-
 async function histSave(){
   const cfg = getCfg();
-  if(!cfg.jsonbinKey || !cfg.jsonbinBin){ setSync("noconfig"); return false; }
-  // ultimoDetalhe fica de fora do payload da nuvem: é só usado para a Conferência
-  // local e, sozinho, já passa de várias vezes o limite seguro do JSONBin grátis.
-  const full = { [HIST_FIELD]: { ...HIST, ultimoDetalhe: null, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
-  const body = JSON.stringify(full);
-  if(body.length <= JSONBIN_SAFE_LIMIT){
-    try{
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.jsonbinBin}`, {
-        method:"PUT",
-        headers:{"Content-Type":"application/json","X-Master-Key":cfg.jsonbinKey},
-        body
-      });
-      if(res.ok){ setSync("ok"); return true; }
-    }catch(e){ console.warn("histSave:", e.message); }
-  }
-  // não coube no JSONBin (ou falhou) — fallback: publica direto no GitHub (commit em main, sem PR)
-  if(cfg.ghToken && cfg.ghRepo){
-    const r = await publishHistToGithub(full);
-    setSync(r.ok ? "ghdirect" : "err");
-    if(!r.ok) toast("Falha ao sincronizar com o GitHub: "+r.msg);
-    return r.ok;
-  }
-  setSync("err");
-  return false;
+  if(!cfg.ghToken || !cfg.ghRepo){ setSync("noconfig"); return false; }
+  // inclui ultimoDetalhe: GitHub não tem limite de tamanho
+  const full = { [HIST_FIELD]: { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
+  const r = await publishHistToGithub(full);
+  setSync(r.ok ? "ok" : "err");
+  if(!r.ok) toast("Falha ao sincronizar com o GitHub: "+r.msg);
+  return r.ok;
 }
 
 /* fallback: commita data/historico.json direto na main (sem branch/PR) */
@@ -1050,9 +1010,8 @@ function setSync(status){
   const pill = document.getElementById("syncPill");
   if(!pill) return;
   const MAP = {
-    ok:["ok","ti-cloud-check","Sincronizado"],
-    empty:["empty","ti-cloud","Conectado · nuvem vazia"],
-    ghdirect:["ghdirect","ti-brand-github","Publicado no GitHub"],
+    ok:["ok","ti-brand-github","GitHub · sincronizado"],
+    empty:["empty","ti-brand-github","GitHub · sem histórico"],
     err:["err","ti-cloud-x","Erro de sync"],
     noconfig:["","ti-cloud-off","Sem config"]
   };
@@ -1070,42 +1029,36 @@ function renderConfigStatus(){
   if(!box) return;
   const cfg = getCfg();
   const LABEL = {
-    ok:["Sincronizado","var(--green-dk)","Os dados estão gravados direto na nuvem (JSONBin)."],
-    empty:["Conectado · nuvem vazia","#5b8cff","Conexão ok, mas nenhuma importação foi registrada ainda."],
-    ghdirect:["Publicado no GitHub","#caa23c","Histórico grande demais para o JSONBin. Os dados foram gravados direto na branch principal do repositório."],
-    err:["Erro de sync","var(--red-dk)","Não foi possível gravar nem no JSONBin nem no GitHub. Os dados desta sessão continuam intactos."],
-    noconfig:["Sem config","var(--text3)","Configure a Master Key e o Bin ID para habilitar a sincronização."]
+    ok:["GitHub · sincronizado","var(--green-dk)","Histórico e cobranças gravados na branch principal do repositório."],
+    empty:["GitHub · sem histórico","var(--text2)","Repositório acessível, mas nenhuma importação foi registrada ainda."],
+    err:["Erro de sync","var(--red-dk)","Não foi possível gravar no GitHub. Verifique o token e as permissões."],
+    noconfig:["Sem config","var(--text3)","Configure o Token e o repositório GitHub para habilitar a sincronização."]
   };
   const [label,color,desc] = LABEL[SYNC.status]||LABEL.noconfig;
   box.innerHTML = `
     <div style="font-size:13px;color:var(--text2);margin-bottom:4px">Status atual</div>
     <div style="font-size:17px;font-weight:800;color:${color};margin-bottom:6px">${label}</div>
     <p class="muted" style="font-size:12.5px;margin-bottom:10px">${desc}</p>
-    <div style="font-size:12px;color:var(--text3)">Bin: <code>${esc(cfg.jsonbinBin||"—")}</code></div>
-    <div style="font-size:12px;color:var(--text3)">Repositório GitHub: <code>${esc(cfg.ghRepo||"—")}</code></div>
-    <div style="font-size:12px;color:var(--text3)">Token do GitHub: ${cfg.ghToken?'<span style="color:var(--green-dk)">configurado</span>':'<span style="color:var(--text3)">não configurado</span>'}</div>`;
+    <div style="font-size:12px;color:var(--text3)">Repositório: <code>${esc(cfg.ghRepo||"—")}</code></div>
+    <div style="font-size:12px;color:var(--text3)">Token: ${cfg.ghToken?'<span style="color:var(--green-dk)">configurado</span>':'<span style="color:var(--amber-dk)">não configurado — leitura funciona, escrita não</span>'}</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:6px"><b>${HIST.semanas.length}</b> importação(ões) no histórico · <b>${Object.keys(COBR).length}</b> item(ns) cobrado(s)</div>`;
 }
 function wireConfigPage(){
   const cfg = getCfg();
   const $ = id => document.getElementById(id);
-  $("cfgJsonbinKey").value = cfg.jsonbinKey;
-  $("cfgJsonbinBin").value = cfg.jsonbinBin;
   $("cfgGhToken").value = cfg.ghToken;
   $("cfgGhRepo").value = cfg.ghRepo;
 
   const showResult = (ok, msg) => {
     const box = $("cfgTestResult");
+    box.style.display = "";
     box.innerHTML = `<span style="color:${ok?'var(--green-dk)':'var(--red-dk)'}">${esc(msg)}</span>`;
   };
 
-  $("cfgToggleKey").onclick = () => { const i=$("cfgJsonbinKey"); i.type = i.type==="password"?"text":"password"; };
   $("cfgToggleTok").onclick = () => { const i=$("cfgGhToken"); i.type = i.type==="password"?"text":"password"; };
-  $("cfgCopyBin").onclick = () => { navigator.clipboard.writeText($("cfgJsonbinBin").value); toast("Bin ID copiado."); };
 
   $("cfgSave").onclick = () => {
     setCfg({
-      jsonbinKey: $("cfgJsonbinKey").value.trim(),
-      jsonbinBin: $("cfgJsonbinBin").value.trim(),
       ghToken: $("cfgGhToken").value.trim(),
       ghRepo: $("cfgGhRepo").value.trim()
     });
@@ -1113,42 +1066,17 @@ function wireConfigPage(){
     histLoad();
   };
 
-  $("cfgCreateBin").onclick = async () => {
-    const senha = prompt("Ação sensível: criar um novo Bin na nuvem.\nDigite a senha para confirmar:");
-    if(senha===null) return;
-    if(senha!=="1234"){ showResult(false,"Senha incorreta. Bin não foi criado."); return; }
-    const key = $("cfgJsonbinKey").value.trim();
-    if(!key){ showResult(false,"Informe a Master Key antes de criar o bin."); return; }
-    try{
-      const res = await fetch("https://api.jsonbin.io/v3/b",{method:"POST",
-        headers:{"Content-Type":"application/json","X-Master-Key":key,"X-Bin-Name":"entrega-futura-historico"},
-        body: JSON.stringify({[HIST_FIELD]:{semanas:[],ultimoDetalhe:null,cobrancas:{},diasReincidencia:DIAS_REINCIDENCIA,meses:{}}})
-      });
-      if(!res.ok) throw new Error("HTTP "+res.status);
-      const data = await res.json();
-      $("cfgJsonbinBin").value = data.metadata.id;
-      showResult(true,"Bin criado: "+data.metadata.id+". Clique em Salvar para usá-lo.");
-    }catch(e){ showResult(false,"Falha ao criar bin: "+e.message); }
-  };
-
-  $("cfgTestJsonbin").onclick = async () => {
-    const key=$("cfgJsonbinKey").value.trim(), bin=$("cfgJsonbinBin").value.trim();
-    if(!key||!bin){ showResult(false,"Informe Master Key e Bin ID."); return; }
-    try{
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${bin}/latest`,{headers:{"X-Master-Key":key,"X-Bin-Meta":"false"}});
-      if(!res.ok) throw new Error("HTTP "+res.status);
-      showResult(true,"Conexão OK! Bin acessível e legível.");
-    }catch(e){ showResult(false,"Falha ao conectar: "+e.message); }
-  };
-
   $("cfgTestGithub").onclick = async () => {
     const token=$("cfgGhToken").value.trim(), repo=$("cfgGhRepo").value.trim();
-    if(!token||!repo){ showResult(false,"Informe o Token e o repositório (owner/repo)."); return; }
+    if(!repo){ showResult(false,"Informe o repositório (owner/repo)."); return; }
     try{
-      const res = await fetch(`https://api.github.com/repos/${repo}`,{headers:{"Authorization":`Bearer ${token}`,"Accept":"application/vnd.github+json"}});
+      const headers = token ? {"Authorization":`Bearer ${token}`,"Accept":"application/vnd.github+json"} : {"Accept":"application/vnd.github+json"};
+      const res = await fetch(`https://api.github.com/repos/${repo}`, {headers});
       if(!res.ok) throw new Error("HTTP "+res.status);
-      const perms = (await res.json()).permissions||{};
-      showResult(true,`Conexão OK! Token válido, acesso ao repositório ${repo}. Permissão de escrita (push): ${perms.push?"sim":"não — necessária para abrir PR"}. Atenção: isto confere seu acesso ao repositório, não as permissões do próprio token — se o fallback de PR falhar com erro 403, gere um PAT fine-grained novo com "Contents: Read and write" + "Pull requests: Read and write" marcados.`);
+      const data = await res.json();
+      const perms = data.permissions||{};
+      const escrita = token ? (perms.push ? "✔ escrita habilitada" : "✘ sem permissão de escrita — gere um PAT fine-grained com Contents: Read and write") : "token não informado — leitura pública ok, escrita não disponível";
+      showResult(!!token && !!perms.push, `Repositório: ${data.full_name}. ${escrita}.`);
     }catch(e){ showResult(false,"Falha ao conectar com o GitHub: "+e.message); }
   };
 
@@ -1312,14 +1240,14 @@ function marcarFilial(sigla, silencioso){
   return n;
 }
 /* COBR (cobranças) fica salvo neste navegador a cada marcação — não depende
-   da nuvem para sobreviver a um reload. A sincronização com a nuvem (JSONBin/
-   GitHub) só acontece quando o usuário clica em "Finalizar cobranças". */
+   da nuvem para sobreviver a um reload. A sincronização com o GitHub
+   só acontece quando o usuário clica em "Finalizar cobranças". */
 const COBR_KEY="ef_cobr_v1";
 function saveCobrLocal(){
   try{ localStorage.setItem(COBR_KEY, JSON.stringify({cobr:COBR, dias:DIAS_REINCIDENCIA})); }
   catch(e){ console.warn("saveCobrLocal:", e.message); }
   const el=document.getElementById("cobrStatus");
-  if(el) el.innerHTML=`<i class="ti ti-device-floppy"></i> Alterações salvas neste navegador. Clique em "Finalizar cobranças" para sincronizar com a nuvem.`;
+  if(el) el.innerHTML=`<i class="ti ti-device-floppy"></i> Alterações salvas neste navegador. Clique em "Finalizar cobranças" para sincronizar com o GitHub.`;
 }
 function loadCobrLocal(){
   try{
@@ -1330,9 +1258,9 @@ function loadCobrLocal(){
     if(typeof data.dias==="number") DIAS_REINCIDENCIA=data.dias;
   }catch(e){ console.warn("loadCobrLocal:", e.message); }
 }
-/* HIST.ultimoDetalhe (snapshot completo p/ a Conferência) também fica só neste
-   navegador — sozinho já passa do limite do plano grátis do JSONBin, então não
-   entra no payload enviado para a nuvem (ver histSave/histLoad). */
+/* HIST.ultimoDetalhe (snapshot completo p/ a Conferência) fica também salvo neste
+   navegador como cache local — histLoad/histSave cuidam de mantê-lo atualizado
+   no GitHub junto com o resto do histórico. */
 const ULTIMO_DETALHE_KEY="ef_ultimo_detalhe_v1";
 function saveUltimoDetalheLocal(){
   try{ localStorage.setItem(ULTIMO_DETALHE_KEY, JSON.stringify(HIST.ultimoDetalhe)); }
@@ -1417,7 +1345,7 @@ function resetApp(){
 
 /* ---------- persistência local da base completa: evita ter que reanexar o XLS a cada
    recarregamento de página. Guarda só os campos já processados (muito menor que o XLS
-   original) — o JSONBin/GitHub continuam guardando apenas o histórico agregado/leve. ---------- */
+   original) — o GitHub continua guardando apenas o histórico agregado/leve. ---------- */
 const LOCAL_KEY="ef_records_v1";
 function saveLocalSnapshot(){
   try{
