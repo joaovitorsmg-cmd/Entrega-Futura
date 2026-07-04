@@ -15,9 +15,10 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.19.0/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>(function(){var t=localStorage.getItem('ef_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
 <style>
 :root{
-  /* Tema escuro — idêntico ao painel de Vencidos */
+  /* Tema escuro — padrão */
   --bg:#0a1322;--bg2:#101d33;--bg3:#16243d;
   --text:#e8f0fb;--text2:#8ba2c2;--text3:#54667f;
   --border:#1a2c47;--border-2:#27406a;
@@ -33,6 +34,20 @@
   --sh:0 1px 3px rgba(0,0,0,.4);--sh-md:0 6px 18px rgba(0,0,0,.5);--sh-lg:0 12px 32px rgba(0,0,0,.6);
   --mono:"SFMono-Regular",ui-monospace,"Cascadia Code","Consolas",monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+[data-theme="light"]{
+  --bg:#ffffff;--bg2:#f0f4f9;--bg3:#e8edf5;
+  --text:#1a2741;--text2:#4a5e7a;--text3:#7a8fa8;
+  --border:#dce4ef;--border-2:#c8d5e5;
+  --brand:#0070B8;--brand2:#3b9ad6;--brand-lt:#ddeef8;--brand-glow:rgba(0,112,184,.18);
+  --brand-dk:#005a96;--accent:#0070B8;
+  --red:#c0392b;--red-lt:#fdecea;--red-dk:#922b21;
+  --green:#1e8449;--green-lt:#e8f5e9;--green-dk:#145a32;
+  --amber:#d4890a;--amber-lt:#fff3e0;--amber-dk:#9c640a;
+  --purple:#3949ab;--purple-lt:#e8eaf6;
+  --gray:#6c7a8d;--gray-lt:#f5f7fa;
+  --header-dk:#ffffff;
+  --sh:0 1px 3px rgba(0,0,0,.08);--sh-md:0 6px 18px rgba(0,0,0,.1);--sh-lg:0 12px 32px rgba(0,0,0,.15);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg3);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
@@ -67,6 +82,9 @@ button{font-family:inherit;cursor:pointer}
 .btn.ghost:hover{background:var(--bg3);color:var(--text)}
 .btn i{font-size:16px}
 .btn.sm{padding:6px 11px;font-size:12px}
+.theme-toggle{flex-direction:column;gap:2px;padding:6px 9px;min-width:unset;line-height:1}
+.theme-toggle i{font-size:18px}
+.theme-toggle .theme-lbl{font-size:9.5px;color:var(--text3);font-weight:700;letter-spacing:.4px;text-transform:uppercase}
 
 .syncpill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;
   font-weight:700;border:1px solid var(--border-2);background:var(--bg2);color:var(--text2);margin-right:10px;white-space:nowrap}
@@ -315,6 +333,7 @@ tbody tr:last-child td{border-bottom:none}
   .brand .sub{display:none}
   .topbar{padding:0 12px;gap:8px}
   .topbar .meta{display:none!important}
+  .theme-lbl{display:none}
   .sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100%;
     transform:translateX(-100%);transition:transform .22s ease;z-index:200;box-shadow:var(--sh-lg);
     padding-top:calc(16px + env(safe-area-inset-top));width:78vw;max-width:280px}
@@ -369,6 +388,10 @@ tbody tr:last-child td{border-bottom:none}
   </div>
   <button class="btn ghost" id="btnReload" style="display:none" onclick="resetApp()">
     <i class="ti ti-upload"></i> Novo relatório
+  </button>
+  <button class="btn ghost theme-toggle" id="btnTheme" onclick="toggleTheme()" aria-label="Alternar tema">
+    <i class="ti ti-moon" id="themeIcon"></i>
+    <span class="theme-lbl">Tema</span>
   </button>
 </div>
 
@@ -584,20 +607,20 @@ tbody tr:last-child td{border-bottom:none}
           <label>Master Key do JSONBin</label>
           <div style="display:flex;gap:8px">
             <input type="password" id="cfgJsonbinKey" style="flex:1">
-            <button class="btn ghost" id="cfgToggleKey"><i class="ti ti-eye"></i></button>
+            <button class="btn ghost" id="cfgToggleKey" title="Mostrar / ocultar chave"><i class="ti ti-eye"></i></button>
           </div>
           <p class="muted" style="margin:4px 0 12px">Guardada apenas neste navegador (localStorage). Nunca sai do seu computador.</p>
 
           <label>Bin ID</label>
           <div style="display:flex;gap:8px">
             <input type="text" id="cfgJsonbinBin" style="flex:1">
-            <button class="btn ghost" id="cfgCopyBin"><i class="ti ti-copy"></i></button>
+            <button class="btn ghost" id="cfgCopyBin" title="Copiar Bin ID"><i class="ti ti-copy"></i></button>
           </div>
 
           <label style="margin-top:12px;display:block">Token do GitHub (fine-grained, fallback de PR)</label>
           <div style="display:flex;gap:8px">
             <input type="password" id="cfgGhToken" style="flex:1">
-            <button class="btn ghost" id="cfgToggleTok"><i class="ti ti-eye"></i></button>
+            <button class="btn ghost" id="cfgToggleTok" title="Mostrar / ocultar token"><i class="ti ti-eye"></i></button>
           </div>
           <p class="muted" style="margin:4px 0 12px">Use um PAT fine-grained restrito a este repositório, com permissão de <b>Contents: Read and write</b> + <b>Pull requests: Read and write</b>. O token só fica no navegador onde for configurado, nunca é publicado.</p>
 
@@ -635,7 +658,7 @@ tbody tr:last-child td{border-bottom:none}
   <div class="modal">
     <header>
       <h3>Cobrança de entrega — <span class="fil" id="mFilial"></span></h3>
-      <button class="x" onclick="closeModal()">&times;</button>
+      <button class="x" onclick="closeModal()" title="Fechar">&times;</button>
     </header>
     <div class="body">
       <div class="field">
@@ -648,10 +671,10 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <footer>
       <div style="flex:1;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px"><i class="ti ti-info-circle"></i> Gerar o e-mail/PDF ou copiar marca como cobrados apenas os itens desta cobrança.</div>
-      <button class="btn ghost" onclick="downloadExcelCobranca()"><i class="ti ti-file-spreadsheet"></i> Baixar Excel da cobrança</button>
-      <button class="btn ghost" onclick="gerarPDFFilial()"><i class="ti ti-file-type-pdf"></i> Gerar PDF da filial</button>
-      <button class="btn" onclick="copyMail()"><i class="ti ti-copy"></i> Copiar texto</button>
-      <button class="btn primary" onclick="openMail()"><i class="ti ti-mail"></i> Abrir no e-mail</button>
+      <button class="btn ghost" onclick="downloadExcelCobranca()" title="Baixar planilha Excel desta cobrança"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+      <button class="btn ghost" onclick="gerarPDFFilial()" title="Gerar PDF da filial para impressão"><i class="ti ti-file-type-pdf"></i> PDF</button>
+      <button class="btn" onclick="copyMail()" title="Copiar texto do e-mail para a área de transferência"><i class="ti ti-copy"></i> Copiar</button>
+      <button class="btn primary" onclick="openMail()" title="Abrir no cliente de e-mail padrão"><i class="ti ti-mail"></i> Abrir no e-mail</button>
     </footer>
   </div>
 </div>
@@ -687,6 +710,39 @@ const EMAILS_PESSOAS = {
   "NABIO BARROS": "nabio.costa@agroquima.com.br",
   "WENDER PARTATA": "partata@agroquima.com.br"
 };
+
+/* ============================================================
+   TEMA CLARO / ESCURO
+   ============================================================ */
+const THEME_KEY = "ef_theme";
+function initTheme(){
+  const saved = localStorage.getItem(THEME_KEY);
+  const prefersDark = window.matchMedia("(prefers-color-scheme:dark)").matches;
+  const theme = saved || (prefersDark ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+  updateThemeBtn();
+  window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change", function(e){
+    if(!localStorage.getItem(THEME_KEY)){
+      document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light");
+      updateThemeBtn();
+    }
+  });
+}
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute("data-theme") || "dark";
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem(THEME_KEY, next);
+  updateThemeBtn();
+}
+function updateThemeBtn(){
+  const isDark = (document.documentElement.getAttribute("data-theme") || "dark") === "dark";
+  const icon = document.getElementById("themeIcon");
+  const btn = document.getElementById("btnTheme");
+  if(icon) icon.className = isDark ? "ti ti-sun" : "ti ti-moon";
+  if(btn) btn.title = isDark ? "Mudar para tema claro" : "Mudar para tema escuro";
+}
+initTheme();
 
 /* ============================================================
    ESTADO
@@ -1676,10 +1732,10 @@ function renderPager(tblId,total){
   let opts="";
   for(let p=1;p<=pages;p++) opts+=`<option value="${p}"${p===cur?" selected":""}>${p}</option>`;
   box.innerHTML=`<span>${fmtINT(from)}–${fmtINT(to)} de ${fmtINT(total)}</span>
-    <button ${cur<=1?"disabled":""} onclick="goToPage('${tblId}',${cur-1})"><i class="ti ti-chevron-left"></i></button>
-    <select class="pgsel" onchange="goToPage('${tblId}',+this.value)">${opts}</select>
+    <button ${cur<=1?"disabled":""} onclick="goToPage('${tblId}',${cur-1})" title="Página anterior" aria-label="Página anterior"><i class="ti ti-chevron-left"></i></button>
+    <select class="pgsel" onchange="goToPage('${tblId}',+this.value)" aria-label="Selecionar página">${opts}</select>
     <span>de ${pages}</span>
-    <button ${cur>=pages?"disabled":""} onclick="goToPage('${tblId}',${cur+1})"><i class="ti ti-chevron-right"></i></button>`;
+    <button ${cur>=pages?"disabled":""} onclick="goToPage('${tblId}',${cur+1})" title="Próxima página" aria-label="Próxima página"><i class="ti ti-chevron-right"></i></button>`;
 }
 function detailTable(tblId,rows){
   const cols=[
