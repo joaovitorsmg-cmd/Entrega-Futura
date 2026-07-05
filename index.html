@@ -404,7 +404,7 @@ tbody tr:last-child td{border-bottom:none}
     <input type="file" id="file" accept=".xls,.xlsx" style="display:none">
     <div class="hint">
       O arquivo bruto é lido direto, sem tratamento prévio.<br>
-      A base das 30 filiais (auditor, regional, gerente, supervisor) já está embutida e o histórico é sincronizado na nuvem.<br>
+      A base das 30 filiais (auditor, regional, gerente, supervisor) já está embutida e o histórico é sincronizado no GitHub.<br>
       Espera-se o export padrão: <code>relatorioControleEntregaFuturaXLS…</code>
     </div>
   </div>
@@ -489,7 +489,7 @@ tbody tr:last-child td{border-bottom:none}
       <div id="cobrStatus" class="note" style="margin-bottom:14px"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
         <button class="btn primary" id="btnFinalizarCobr" onclick="persistirCobranca()">
-          <i class="ti ti-cloud-upload"></i> Finalizar cobranças (sincronizar com a nuvem)
+          <i class="ti ti-brand-github"></i> Finalizar cobranças (sincronizar com o GitHub)
         </button>
         <button class="btn danger" onclick="zerarCobranças()">
           <i class="ti ti-trash"></i> Zerar cobranças
@@ -1274,7 +1274,7 @@ function loadUltimoDetalheLocal(){
   }catch(e){ console.warn("loadUltimoDetalheLocal:", e.message); }
 }
 function zerarCobranças(){
-  if(!confirm("Zerar todas as cobranças registradas? Isso apaga o histórico de cobranças deste dispositivo e da nuvem. Esta ação não pode ser desfeita.")) return;
+  if(!confirm("Zerar todas as cobranças registradas? Isso apaga o histórico de cobranças deste dispositivo e do GitHub. Esta ação não pode ser desfeita.")) return;
   COBR={};
   saveCobrLocal();
   calcularAuditoria();
@@ -1286,7 +1286,7 @@ async function persistirCobranca(){
   const ok=await histSave();
   const el=document.getElementById("cobrStatus");
   if(el) el.innerHTML = ok
-    ? `<i class="ti ti-cloud-check"></i> Registro de cobranças sincronizado na nuvem.`
+    ? `<i class="ti ti-brand-github"></i> Registro de cobranças sincronizado no GitHub.`
     : `<i class="ti ti-cloud-x"></i> Não consegui gravar agora; tentará na próxima ação.`;
 }
 // re-render de tudo que depende do status de cobrança
@@ -2213,7 +2213,7 @@ function renderInsights(){
    ============================================================ */
 function renderEvolucao(saveOk,loading){
   const cmp=document.getElementById("cmpBox"), status=document.getElementById("histStatus");
-  if(loading){cmp.innerHTML=`<div class="insight"><p class="muted">Carregando histórico da nuvem…</p></div>`;status.textContent="Sincronizando…";}
+  if(loading){cmp.innerHTML=`<div class="insight"><p class="muted">Carregando histórico do GitHub…</p></div>`;status.textContent="Sincronizando…";}
   if(COMP){
     const vEnt=COMP.entreguesTotal.reduce((s,r)=>s+(r.entregue*(r.vu||0)),0)+COMP.parciais.reduce((s,r)=>s+(r.entregue*(r.vu||0)),0);
     cmp.innerHTML=`<div class="cards" style="margin-bottom:8px">
@@ -2226,8 +2226,8 @@ function renderEvolucao(saveOk,loading){
     cmp.innerHTML=`<div class="insight warn"><h3><i class="ti ti-info-circle"></i> Sem semana anterior para comparar</h3>
       <p>Esta é a primeira importação registrada. A partir da próxima vez que você subir um relatório, o painel mostra aqui o que foi entregue e o que continua parado — incluindo pedidos específicos.</p></div>`;
   }
-  if(saveOk===true) status.innerHTML=`<i class="ti ti-cloud-check"></i> Histórico sincronizado na nuvem. <b>${HIST.semanas.length}</b> importação(ões) registrada(s).`;
-  else if(saveOk===false) status.innerHTML=`<i class="ti ti-cloud-x"></i> Não consegui gravar na nuvem agora. A comparação desta sessão continua válida; tentará de novo na próxima importação.`;
+  if(saveOk===true) status.innerHTML=`<i class="ti ti-brand-github"></i> Histórico sincronizado no GitHub. <b>${HIST.semanas.length}</b> importação(ões) registrada(s).`;
+  else if(saveOk===false) status.innerHTML=`<i class="ti ti-cloud-x"></i> Não consegui gravar no GitHub agora. A comparação desta sessão continua válida; tentará de novo na próxima importação.`;
 
   const semanas=(HIST.semanas||[]).slice().reverse();
   let h=`<thead><tr><th>Data</th><th class="num">Itens</th><th class="num">Atrasados</th>
