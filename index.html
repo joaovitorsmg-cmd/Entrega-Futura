@@ -158,6 +158,9 @@ button{font-family:inherit;cursor:pointer}
 .kpi.r{border-top:3px solid var(--red)} .kpi.r .val{color:var(--red-dk)}
 .kpi.a{border-top:3px solid var(--amber)} .kpi.a .val{color:var(--amber-dk)}
 .kpi.b{border-top:3px solid var(--brand)} .kpi.b .val{color:var(--brand)}
+.card.clickable{cursor:pointer;transition:.15s}
+.card.clickable:hover{border-color:var(--brand);transform:translateY(-2px);box-shadow:var(--sh-md)}
+.card.clickable:active{transform:translateY(0)}
 
 /* ---------- filter bar ---------- */
 .filterbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;
@@ -385,7 +388,7 @@ tbody tr:last-child td{border-bottom:none}
     <div id="metaFile" class="muted"></div>
     <div id="metaPeriodo" class="muted" style="font-size:10px"></div>
   </div>
-  <button class="btn ghost" id="btnReload" style="display:none" onclick="resetApp()">
+  <button class="btn ghost" id="btnReload" style="display:none" onclick="resetApp()" title="Descartar o relatório atual e carregar um novo arquivo XLS">
     <i class="ti ti-upload"></i> Novo relatório
   </button>
   <button class="btn ghost theme-toggle" id="btnTheme" onclick="toggleTheme()" aria-label="Alternar tema">
@@ -428,7 +431,9 @@ tbody tr:last-child td{border-bottom:none}
     <button class="nav-item" data-pg="filiais"><i class="ti ti-building-store"></i> Por filial</button>
     <button class="nav-item" data-pg="auditores"><i class="ti ti-user-check"></i> Por auditor</button>
     <button class="nav-item" data-pg="regionais"><i class="ti ti-map-pin"></i> Por regional</button>
+    <button class="nav-item" data-pg="base"><i class="ti ti-table"></i> Base completa</button>
     <div class="nav-group">Sistema</div>
+    <button class="nav-item" data-pg="conferencia"><i class="ti ti-shield-check"></i> Conferência da base</button>
     <button class="nav-item" data-pg="config"><i class="ti ti-settings"></i> Configuração</button>
   </nav>
 
@@ -488,10 +493,10 @@ tbody tr:last-child td{border-bottom:none}
         <p>O que já foi cobrado e o que não foi. Evita cobrar duas vezes o mesmo item e expõe quem foi cobrado e ignorou.</p></div>
       <div id="cobrStatus" class="note" style="margin-bottom:14px"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <button class="btn primary" id="btnFinalizarCobr" onclick="persistirCobranca()">
+        <button class="btn primary" id="btnFinalizarCobr" onclick="persistirCobranca()" title="Salvar as cobranças registradas no GitHub e sincronizar com todos os dispositivos">
           <i class="ti ti-brand-github"></i> Finalizar cobranças (sincronizar com o GitHub)
         </button>
-        <button class="btn danger" onclick="zerarCobranças()">
+        <button class="btn danger" onclick="zerarCobranças()" title="Apagar todo o histórico de cobranças desta sessão — irreversível">
           <i class="ti ti-trash"></i> Zerar cobranças
         </button>
       </div>
@@ -504,7 +509,7 @@ tbody tr:last-child td{border-bottom:none}
           <label style="font-size:12px;color:var(--text2)">Prazo para virar reincidente:</label>
           <input type="number" id="inpReinc" value="10" min="1" max="90" style="width:80px;background:var(--bg);border:1px solid var(--border-2);color:var(--text);padding:6px 9px;border-radius:6px;font-size:13px">
           <span style="font-size:12px;color:var(--text3)">dias</span>
-          <button class="btn sm" onclick="aplicarPrazo()"><i class="ti ti-check"></i> Aplicar</button>
+          <button class="btn sm" onclick="aplicarPrazo()" title="Aplicar o prazo de reincidência informado"><i class="ti ti-check"></i> Aplicar</button>
         </div>
       </div>
       <div class="filterbar" id="fbAudit"></div>
@@ -515,6 +520,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="page" id="pg-retidos">
       <div class="page-head"><h2><i class="ti ti-lock"></i> Retidos</h2>
         <p>Itens não pagos — não devem ser entregues. Candidatos a acompanhamento ou devolução da entrega futura.</p></div>
+      <div class="cards" id="cardsRetidos" style="margin-bottom:18px"></div>
       <div class="filterbar" id="fbRetidos"></div>
       <div class="tablewrap"><table id="tblRetidos"></table></div>
       <div class="pager" id="tblRetidos_pager"></div>
@@ -591,15 +597,6 @@ tbody tr:last-child td{border-bottom:none}
         <p><b>Sincronização exclusiva via GitHub:</b> a cada importação, o painel grava o histórico completo (semanas, cobranças, meses) e a base atual diretamente na branch principal do repositório — sem serviços externos. Qualquer usuário que abrir o link verá a posição mais recente sem precisar importar o arquivo. A leitura é pública (sem token); a escrita exige um PAT fine-grained com <b>Contents: Read and write</b>.</p>
       </div>
 
-      <div class="card-box" style="margin-bottom:16px">
-        <h3 style="margin-top:0"><i class="ti ti-database"></i> Dados e base</h3>
-        <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Acesso avançado à base bruta — uso pontual, não é necessário no dia a dia de cobrança.</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn" onclick="gotoPage('base')"><i class="ti ti-table"></i> Ver base completa</button>
-          <button class="btn" onclick="gotoPage('conferencia')"><i class="ti ti-shield-check"></i> Conferência da base</button>
-        </div>
-      </div>
-
       <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start">
         <div class="card-box">
           <h3 style="margin-top:0"><i class="ti ti-brand-github"></i> Configuração GitHub</h3>
@@ -673,7 +670,7 @@ const LOGO_DATA_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAMC
 /* ============================================================
    BASE DE REGIONAIS (30 filiais) — embutida
    ============================================================ */
-const BASE = {"MTZ": {"loja": "MATRIZ", "estado": "GO", "gerente": "REVALINO NETO", "supervisor": "ERON LUIZ", "regional": "SERGIO ADRIANO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f01@agroquima.com.br"}, "ARG": {"loja": "ARAGUAÍNA", "estado": "TO", "gerente": "FABIO AUGUSTO", "supervisor": "MAGNO ALVES", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "magno.abreu@agroquima.com.br"}, "RVD": {"loja": "RIO VERDE", "estado": "GO", "gerente": "WENDER PARTATA", "supervisor": "NATANIELLE VARGAS", "regional": "WENDER PARTATA", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f04@agroquima.com.br"}, "UBR": {"loja": "UBERLÂNDIA", "estado": "MG", "gerente": "JOÃO CLÁUDIO", "supervisor": "GISELE MARIA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "gisele@agroquima.com.br"}, "MAR": {"loja": "MARABÁ", "estado": "PA", "gerente": "ENIO JOSAFE", "supervisor": "LUCAS DAMACENO", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f10@agroquima.com.br"}, "JAT": {"loja": "JATAI", "estado": "GO", "gerente": "RENATO TEODORO", "supervisor": "LUBIA SILVA", "regional": "WENDER PARTATA", "auditor": "JOÃO VITOR", "emailSupervisor": "lubia@agroquima.com.br"}, "CRI": {"loja": "CRISTALINA", "estado": "GO", "gerente": "ANDRE FERNANDO", "supervisor": "MARCIA DE OLIVEIRA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "marcia@agroquima.com.br"}, "FAG": {"loja": "UBS", "estado": "GO", "gerente": "EVANDRO MACEDO", "supervisor": "KARINE GOMES", "regional": "EVANDRO MACEDO", "auditor": "FÁBIO", "emailSupervisor": "karine.gomes@agroquima.com.br"}, "RED": {"loja": "REDENÇÃO", "estado": "PA", "gerente": "ANDERSON PEREIRA", "supervisor": "BARBARA PEREIRA", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f14@agroquima.com.br"}, "IMP": {"loja": "IMPERATRIZ", "estado": "MA", "gerente": "IALE MILHOMEM", "supervisor": "ROSIANE CANDIDO", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f16@agroquima.com.br"}, "BAR": {"loja": "BARRA DO GARÇAS", "estado": "MT", "gerente": "VINICIUS BRITO", "supervisor": "KARINE SOARES", "regional": "MATO GROSSO", "auditor": "JOÃO VITOR", "emailSupervisor": "karini.soares@agroquima.com.br"}, "PAL": {"loja": "PALMAS", "estado": "TO", "gerente": "MARLON GERMANO", "supervisor": "PATRICIA PEREIRA", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f19@agroquima.com.br"}, "MOZ": {"loja": "MOZARLÂNDIA", "estado": "GO", "gerente": "THIAGO VAZ", "supervisor": "NÚBIA GASPAROTTI", "regional": "SERGIO ADRIANO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f21@agroquima.com.br"}, "PGM": {"loja": "PARAGOMINAS", "estado": "PA", "gerente": "LORENA MOISES", "supervisor": "ARTHUR  SILVA", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f22@agroquima.com.br"}, "SFX": {"loja": "SÃO FELIX DO XINGU", "estado": "PA", "gerente": "PEDRO MACIEL", "supervisor": "LANNA  KEROLAYNE", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f23@agroquima.com.br"}, "FAP": {"loja": "FABRICA APARECIDA", "estado": "GO", "gerente": "ANNAPAULLA GARCIA", "supervisor": "ANNAPAULLA GARCIA", "regional": "ANNAPAULLA GARCIA", "auditor": "JOÃO VITOR", "emailSupervisor": "annapaulla@agroquima.com.br"}, "FCB": {"loja": "CUIABÁ", "estado": "MT", "gerente": "GEOVANNY VIGILATO", "supervisor": "JULIANA LIMA", "regional": "MATO GROSSO", "auditor": "FÁBIO", "emailSupervisor": "juliana.lima@agroquima.com.br"}, "URU": {"loja": "URUAÇU", "estado": "GO", "gerente": "EDVANDO JOSE", "supervisor": "NIVEA ALVES", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f27@agroquima.com.br"}, "MOR": {"loja": "MORRINHOS", "estado": "GO", "gerente": "ABEL HANUN", "supervisor": "PAULA REGINA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f28@agroquima.com.br"}, "CON": {"loja": "CONFRESA", "estado": "MT", "gerente": "AKYLLA OLIVEIRA", "supervisor": "FELIPE ANDRADE", "regional": "MATO GROSSO", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f29@agroquima.com.br"}, "FOR": {"loja": "FORMOSA", "estado": "GO", "gerente": "DANIEL BARREIRA", "supervisor": "JULIANA MARIA", "regional": "NABIO BARROS", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f30@agroquima.com.br"}, "JUS": {"loja": "JUSSARA", "estado": "GO", "gerente": "CLESIO ALVES", "supervisor": "MARIANNE SAHARA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f31@agroquima.com.br"}, "XRA": {"loja": "XINGUARA", "estado": "PA", "gerente": "WILLIAN ANTIGO", "supervisor": "LEONICE MORAIS", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f32@agroquima.com.br"}, "POR": {"loja": "PORANGATU", "estado": "GO", "gerente": "ANTONIO CARLOS", "supervisor": "ALLYNE LUCENA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f34@agroquima.com.br"}, "PLA": {"loja": "PONTES E LACERDA", "estado": "MT", "gerente": "MARCELO MULLER", "supervisor": "RENATA COSTA", "regional": "MATO GROSSO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f35@agroquima.com.br"}, "GRA": {"loja": "GOIANIRA", "estado": "GO", "gerente": "HENISLEY SABINO", "supervisor": "HENISLEY SABINO", "regional": "HENISLEY SABINO", "auditor": "FÁBIO", "emailSupervisor": "henisley.sabino@agroquima.com.br"}, "CAN": {"loja": "CANARANA", "estado": "MT", "gerente": "LEONARDO FREITAS", "supervisor": "INGRID KAROLAYNE", "regional": "MATO GROSSO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f37@agroquima.com.br"}, "GUR": {"loja": "GURUPI", "estado": "TO", "gerente": "FREDERICO CARRIJO", "supervisor": "RENATA  CERQUEIRA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f38@agroquima.com.br"}, "RIA": {"loja": "RIALMA", "estado": "GO", "gerente": "NATALINO NETO", "supervisor": "ROSILDA CURSINO", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f40@agroquima.com.br"}, "ALT": {"loja": "ALTAMIRA", "estado": "PA", "gerente": "DAVID DOURADO", "supervisor": "JOSIMARA CABRAL", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f41@agroquima.com.br"}};
+const BASE = {"MTZ": {"loja": "MATRIZ", "estado": "GO", "gerente": "REVALINO NETO", "supervisor": "ERON LUIZ", "regional": "SERGIO ADRIANO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f01@agroquima.com.br"}, "ARG": {"loja": "ARAGUAÍNA", "estado": "TO", "gerente": "FABIO AUGUSTO", "supervisor": "MAGNO ALVES", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "magno.abreu@agroquima.com.br"}, "RVD": {"loja": "RIO VERDE", "estado": "GO", "gerente": "WENDER PARTATA", "supervisor": "NATANIELLE VARGAS", "regional": "WENDER PARTATA", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f04@agroquima.com.br"}, "UBR": {"loja": "UBERLÂNDIA", "estado": "MG", "gerente": "JOÃO CLÁUDIO", "supervisor": "GISELE MARIA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "gisele@agroquima.com.br"}, "MAR": {"loja": "MARABÁ", "estado": "PA", "gerente": "ENIO JOSAFE", "supervisor": "LUCAS DAMACENO", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f10@agroquima.com.br"}, "JAT": {"loja": "JATAI", "estado": "GO", "gerente": "RENATO TEODORO", "supervisor": "LUBIA SILVA", "regional": "WENDER PARTATA", "auditor": "JOÃO VITOR", "emailSupervisor": "lubia@agroquima.com.br"}, "CRI": {"loja": "CRISTALINA", "estado": "GO", "gerente": "ANDRE FERNANDO", "supervisor": "MARCIA DE OLIVEIRA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "marcia@agroquima.com.br"}, "FAG": {"loja": "UBS", "estado": "GO", "gerente": "EVANDRO MACEDO", "supervisor": "KARINE GOMES", "regional": "EVANDRO MACEDO", "auditor": "FÁBIO", "emailSupervisor": "karine.gomes@agroquima.com.br"}, "RED": {"loja": "REDENÇÃO", "estado": "PA", "gerente": "ANDERSON PEREIRA", "supervisor": "BARBARA PEREIRA", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f14@agroquima.com.br"}, "IMP": {"loja": "IMPERATRIZ", "estado": "MA", "gerente": "IALE MILHOMEM", "supervisor": "ROSIANE CANDIDO", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f16@agroquima.com.br"}, "BAR": {"loja": "BARRA DO GARÇAS", "estado": "MT", "gerente": "VINICIUS BRITO", "supervisor": "KARINE SOARES", "regional": "MATO GROSSO", "auditor": "JOÃO VITOR", "emailSupervisor": "karini.soares@agroquima.com.br"}, "PAL": {"loja": "PALMAS", "estado": "TO", "gerente": "MARLON GERMANO", "supervisor": "PATRICIA PEREIRA", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f19@agroquima.com.br"}, "MOZ": {"loja": "MOZARLÂNDIA", "estado": "GO", "gerente": "THIAGO VAZ", "supervisor": "NÚBIA GASPAROTTI", "regional": "SERGIO ADRIANO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f21@agroquima.com.br"}, "PGM": {"loja": "PARAGOMINAS", "estado": "PA", "gerente": "LORENA MOISES", "supervisor": "ARTHUR SILVA", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f22@agroquima.com.br"}, "SFX": {"loja": "SÃO FELIX DO XINGU", "estado": "PA", "gerente": "PEDRO MACIEL", "supervisor": "LANNA KEROLAYNE", "regional": "LEANDRO CAMPOS", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f23@agroquima.com.br"}, "FAP": {"loja": "FABRICA APARECIDA", "estado": "GO", "gerente": "ANNAPAULLA GARCIA", "supervisor": "ANNAPAULLA GARCIA", "regional": "ANNAPAULLA GARCIA", "auditor": "JOÃO VITOR", "emailSupervisor": "annapaulla@agroquima.com.br"}, "FCB": {"loja": "CUIABÁ", "estado": "MT", "gerente": "GEOVANNY VIGILATO", "supervisor": "JULIANA LIMA", "regional": "MATO GROSSO", "auditor": "FÁBIO", "emailSupervisor": "juliana.lima@agroquima.com.br"}, "URU": {"loja": "URUAÇU", "estado": "GO", "gerente": "EDVANDO JOSE", "supervisor": "NIVEA ALVES", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f27@agroquima.com.br"}, "MOR": {"loja": "MORRINHOS", "estado": "GO", "gerente": "ABEL HANUN", "supervisor": "PAULA REGINA", "regional": "NABIO BARROS", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f28@agroquima.com.br"}, "CON": {"loja": "CONFRESA", "estado": "MT", "gerente": "AKYLLA OLIVEIRA", "supervisor": "FELIPE ANDRADE", "regional": "MATO GROSSO", "auditor": "CARLOS POGGIAN", "emailSupervisor": "supervisoradm.f29@agroquima.com.br"}, "FOR": {"loja": "FORMOSA", "estado": "GO", "gerente": "DANIEL BARREIRA", "supervisor": "JULIANA MARIA", "regional": "NABIO BARROS", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f30@agroquima.com.br"}, "JUS": {"loja": "JUSSARA", "estado": "GO", "gerente": "CLESIO ALVES", "supervisor": "MARIANNE SAHARA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f31@agroquima.com.br"}, "XRA": {"loja": "XINGUARA", "estado": "PA", "gerente": "WILLIAN ANTIGO", "supervisor": "LEONICE MORAIS", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f32@agroquima.com.br"}, "POR": {"loja": "PORANGATU", "estado": "GO", "gerente": "ANTONIO CARLOS", "supervisor": "ALLYNE LUCENA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f34@agroquima.com.br"}, "PLA": {"loja": "PONTES E LACERDA", "estado": "MT", "gerente": "MARCELO MULLER", "supervisor": "RENATA COSTA", "regional": "MATO GROSSO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f35@agroquima.com.br"}, "GRA": {"loja": "GOIANIRA", "estado": "GO", "gerente": "HENISLEY SABINO", "supervisor": "HENISLEY SABINO", "regional": "HENISLEY SABINO", "auditor": "FÁBIO", "emailSupervisor": "henisley.sabino@agroquima.com.br"}, "CAN": {"loja": "CANARANA", "estado": "MT", "gerente": "LEONARDO FREITAS", "supervisor": "INGRID KAROLAYNE", "regional": "MATO GROSSO", "auditor": "JOÃO VITOR", "emailSupervisor": "supervisoradm.f37@agroquima.com.br"}, "GUR": {"loja": "GURUPI", "estado": "TO", "gerente": "FREDERICO CARRIJO", "supervisor": "RENATA CERQUEIRA", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f38@agroquima.com.br"}, "RIA": {"loja": "RIALMA", "estado": "GO", "gerente": "NATALINO NETO", "supervisor": "ROSILDA CURSINO", "regional": "SERGIO ADRIANO", "auditor": "FÁBIO", "emailSupervisor": "supervisoradm.f40@agroquima.com.br"}, "ALT": {"loja": "ALTAMIRA", "estado": "PA", "gerente": "DAVID DOURADO", "supervisor": "JOSIMARA CABRAL", "regional": "LEANDRO CAMPOS", "auditor": "GUILHERME", "emailSupervisor": "supervisoradm.f41@agroquima.com.br"}};
 
 /* E-mails fixos da diretoria e dos responsáveis (auditor/regional).
    Supervisor usa o e-mail por filial (BASE[sigla].emailSupervisor).
@@ -1302,12 +1299,64 @@ function refreshAll(){
 /* ============================================================
    FORMATADORES + HELPERS DE UI
    ============================================================ */
-function kpi(cls,lab,icon,val,foot){
-  return `<div class="card kpi ${cls}"><div class="lab">${icon?`<i class="ti ti-${icon}"></i>`:''}${lab}</div>
+function kpi(cls,lab,icon,val,foot,onclick){
+  const extra=onclick?` onclick="${onclick}" role="button" tabindex="0"`:'';
+  return `<div class="card kpi ${cls}${onclick?' clickable':''}"${extra}><div class="lab">${icon?`<i class="ti ti-${icon}"></i>`:''}${lab}</div>
     <div class="val">${val}</div>${foot?`<div class="foot">${foot}</div>`:''}</div>`;
 }
 const pct=(a,b)=>b?((a/b*100).toFixed(0)+"%"):"0%";
 function filialCell(r){return `<span class="filial-cell"><span class="sg">${r.sigla}</span> <span class="nm">${esc(r.filial)}</span></span>`;}
+
+/* --- KPI drill-down helpers --- */
+function kpiFilterAudit(showNao,showAg,showRe){
+  gotoPage('auditoria');
+  setTimeout(()=>{
+    const fb=document.getElementById('fbAudit');
+    if(!fb) return;
+    const map={st_nao:showNao,st_ag:showAg,st_re:showRe};
+    Object.entries(map).forEach(([f,on])=>{
+      const el=fb.querySelector(`[data-f="${f}"]`);
+      if(el) on?el.classList.add('on'):el.classList.remove('on');
+    });
+    renderAuditoria();
+  },50);
+}
+function kpiCobrarSoAtr(){
+  const chip=document.querySelector('#fbCobrar .chip[data-f="soatr"]');
+  if(chip && !chip.classList.contains('on')){chip.classList.add('on');rerender();}
+}
+function scrollToEntregues(tipo){
+  if(tipo!=='all'){
+    const tTotal=document.getElementById('entTotal'),tParc=document.getElementById('entParc');
+    if(tTotal&&tParc){
+      if(tipo==='total'){tTotal.classList.add('on');tParc.classList.remove('on');}
+      else if(tipo==='parc'){tTotal.classList.remove('on');tParc.classList.add('on');}
+      renderEntregues();
+    }
+  }
+  const tbl=document.getElementById('tblEntregues');
+  if(tbl) tbl.closest('.tablewrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function kpiAuditFilial(){
+  const sigla=CONSULTA_SIGLA;
+  if(!sigla) return;
+  gotoPage('auditoria');
+  setTimeout(()=>{
+    const fb=document.getElementById('fbAudit');
+    if(!fb) return;
+    const sel=fb.querySelector('[data-f="sigla"]');
+    if(sel) sel.value=sigla;
+    ['st_nao'].forEach(f=>{
+      const el=fb.querySelector(`[data-f="${f}"]`);
+      if(el) el.classList.add('on');
+    });
+    ['st_ag','st_re'].forEach(f=>{
+      const el=fb.querySelector(`[data-f="${f}"]`);
+      if(el) el.classList.remove('on');
+    });
+    renderAuditoria();
+  },50);
+}
 
 /* ============================================================
    CARREGAMENTO DE ARQUIVO
@@ -1481,13 +1530,14 @@ function renderResumo(){
   const ct=RECORDS.filter(r=>r.status==="total"), cp=RECORDS.filter(r=>r.status==="parc"), rt=RECORDS.filter(r=>r.status==="ret");
   const vEnt=RECORDS.reduce((s,r)=>s+r.valorEntregar,0), vRet=RECORDS.reduce((s,r)=>s+r.valorRetido,0);
   const vParado=RECORDS.reduce((s,r)=>s+r.valorParado,0);
-  document.getElementById("badgeCobrar").textContent=ct.length+cp.length;
+  const atrCobrar=RECORDS.filter(r=>r.status!=="ret"&&r.atrasado);
+  document.getElementById("badgeCobrar").textContent=atrCobrar.length||"";
   document.getElementById("cardsResumo").innerHTML=
-    kpi("b","Itens em aberto","package",fmtINT(tot),`em ${new Set(RECORDS.map(r=>r.sigla)).size} filiais`)+
-    kpi("r","Itens atrasados","alarm",fmtINT(atr),pct(atr,tot)+" do total · ≥ limite da linha")+
-    kpi("","Valor total parado","businessplan",fmtBRL(vParado),"produto vendido e não retirado")+
-    kpi("g","A liberar (já pago)","cash",fmtBRL(vEnt),`${fmtINT(ct.length+cp.length)} itens cobráveis`)+
-    kpi("r","Retido (cliente deve)","lock",fmtBRL(vRet),`${fmtINT(rt.length)} itens presos`);
+    kpi("b","Itens em aberto","package",fmtINT(tot),`em ${new Set(RECORDS.map(r=>r.sigla)).size} filiais`,"gotoPage('base')")+
+    kpi("r","Itens atrasados","alarm",fmtINT(atr),pct(atr,tot)+" do total · ≥ limite da linha","gotoPage('cobrar')")+
+    kpi("","Valor total parado","businessplan",fmtBRL(vParado),"produto vendido e não retirado","gotoPage('base')")+
+    kpi("g","A liberar (já pago)","cash",fmtBRL(vEnt),`${fmtINT(ct.length+cp.length)} itens cobráveis`,"gotoPage('cobrar')")+
+    kpi("r","Retido (cliente deve)","lock",fmtBRL(vRet),`${fmtINT(rt.length)} itens presos`,"gotoPage('retidos')");
 
   const byLine={};
   RECORDS.forEach(r=>{const k=r.linha||"(sem linha)";(byLine[k]=byLine[k]||{n:0,atr:0,ent:0,ret:0});
@@ -1710,6 +1760,7 @@ function detailTable(tblId,rows){
   renderPager(tblId,total);
 }
 function doSort(tblId,k){const s=sortState[tblId];sortState[tblId]=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};pageState[tblId]=1;rerender();}
+function doSortAudit(k){const s=sortState.tblAudit;sortState.tblAudit=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderAuditoria();}
 
 const FILTERBAR_BY_TBL={tblCobrar:"fbCobrar",tblRetidos:"fbRetidos",tblBase:"fbBase"};
 function cobrarFiltrado(tblId, sigla){
@@ -1726,15 +1777,22 @@ function renderCobrar(){
   if(!sortState.tblCobrar) sortState.tblCobrar={k:"valorEntregar",dir:-1};
   const ct=rows.filter(r=>r.status==="total"),cp=rows.filter(r=>r.status==="parc");
   document.getElementById("cardsCobrar").innerHTML=
-    kpi("b","Itens a cobrar","cash",fmtINT(rows.length),`${ct.length} total + ${cp.length} parcial`)+
+    kpi("b","Itens a cobrar","cash",fmtINT(rows.length),`${ct.length} total · ${cp.length} parcial`)+
     kpi("g","Valor a liberar","businessplan",fmtBRL(rows.reduce((s,r)=>s+r.valorEntregar,0)),"já pago — force a entrega")+
-    kpi("r","Atrasados na lista","alarm",fmtINT(rows.filter(r=>r.atrasado).length),"prioridade máxima");
+    kpi("r","Atrasados na lista","alarm",fmtINT(rows.filter(r=>r.atrasado).length),"clique para filtrar","kpiCobrarSoAtr()");
   detailTable("tblCobrar",rows);
 }
 function renderRetidos(){
   const f=readFilter("fbRetidos");
   let rows=applyFilter(RECORDS.filter(r=>r.status==="ret"),f);
   if(!sortState.tblRetidos) sortState.tblRetidos={k:"valorRetido",dir:-1};
+  const vRet=rows.reduce((s,r)=>s+r.valorRetido,0);
+  const atr=rows.filter(r=>r.atrasado).length;
+  const cr=document.getElementById("cardsRetidos");
+  if(cr) cr.innerHTML=
+    kpi("r","Itens retidos","lock",fmtINT(rows.length),"sem pagamento — não entregar")+
+    kpi("r","Valor retido","businessplan",fmtBRL(vRet),"ainda em poder da empresa")+
+    kpi("a","Retidos atrasados","alarm",fmtINT(atr),"acima do limite da linha");
   detailTable("tblRetidos",rows);
 }
 function renderBase(){
@@ -1848,7 +1906,7 @@ function renderConsulta(){
     kpi("","Já cobrado (valor)","cash",fmtBRL(d.valorTotal),`${fmtINT(d.itens.length)} item(ns) com cobrança registrada`)+
     kpi("","Cobrado desde","calendar-event",d.primeira?fmtDATE(new Date(d.primeira)):"—",d.ultima?`última cobrança em ${fmtDATE(new Date(d.ultima))}`:"sem registro")+
     kpi("","Vezes cobrado","repeat",fmtINT(d.vezesTotal),`${fmtINT(d.aguardando)} aguardando · ${fmtINT(d.reincidentes)} reincidente(s)`)+
-    kpi(d.naoCobrados?"r":"g","Itens sem cobrança","alert-circle",fmtINT(d.naoCobrados),"ainda não marcados como cobrados");
+    kpi(d.naoCobrados?"r":"g","Itens sem cobrança","alert-circle",fmtINT(d.naoCobrados),"ver na auditoria",d.naoCobrados?"kpiAuditFilial()":"");
   const itensOrd=[...d.itens].sort((a,b)=>(b.audit.dataCobr||"").localeCompare(a.audit.dataCobr||""));
   let h=`<thead><tr><th>Status</th><th>Pedido</th><th>Cliente</th><th>Produto</th>
     <th class="num">Vezes</th><th>1ª cobrança</th><th>Última cobrança</th><th class="num">Valor a entregar</th></tr></thead><tbody>`;
@@ -1964,9 +2022,9 @@ function renderConferencia(){
   });
   let html=`<div class="cards" style="margin-bottom:18px">
     ${kpi("g","Filiais conferidas OK","circle-check",fmtINT(okCount),"auditor, regional, gerente e supervisor preenchidos")}
-    ${kpi(semBase.length?"r":"g","Filiais sem cadastro na base","alert-triangle",fmtINT(semBase.length),semBase.length?semBase.join(", "):"todas cadastradas")}
+    ${kpi(semBase.length?"r":"g","Filiais sem cadastro na base","alert-triangle",fmtINT(semBase.length),semBase.length?semBase.join(", "):"todas cadastradas",semBase.length?"document.getElementById('confAlert')?.scrollIntoView({behavior:'smooth'})":"")}
     ${kpi("b","Filiais no relatório","building-store",fmtINT(sigs.length),"com itens em aberto")}</div>`;
-  if(semBase.length) html+=`<div class="insight crit"><h3><i class="ti ti-alert-triangle"></i> Filiais do relatório ausentes na base</h3>
+  if(semBase.length) html+=`<div class="insight crit" id="confAlert"><h3><i class="ti ti-alert-triangle"></i> Filiais do relatório ausentes na base</h3>
     <p>Os itens destas filiais aparecem sem auditor/regional/gerente/supervisor. Inclua-as na base: <b>${semBase.join(", ")}</b></p></div>`;
   html+=`<div class="tablewrap full"><table><thead><tr><th>OK</th><th>Filial</th><th>Auditor</th><th>Regional</th><th>Gerente</th><th>Supervisor</th><th class="num">Itens</th></tr></thead><tbody>${rowsH}</tbody></table></div>`;
   document.getElementById("confBox").innerHTML=html;
@@ -1999,9 +2057,9 @@ function renderAuditoria(){
 
   const box=document.getElementById("cardsAudit");
   if(box) box.innerHTML=
-    kpi("","Não cobrados (cobráveis)","square",fmtINT(rsm.naoCobrado),`${fmtBRL(rsm.vNaoCobrado)} a cobrar`)+
-    kpi("b","Cobrados · aguardando","clock",fmtINT(rsm.aguardando),"dentro do prazo")+
-    kpi("r","Reincidentes","alert-triangle",fmtINT(rsm.reincidente),`${fmtBRL(rsm.vReincidente)} ignorado após cobrança`);
+    kpi("","Não cobrados (cobráveis)","square",fmtINT(rsm.naoCobrado),`${fmtBRL(rsm.vNaoCobrado)} a cobrar`,"kpiFilterAudit(true,false,false)")+
+    kpi("b","Cobrados · aguardando","clock",fmtINT(rsm.aguardando),"dentro do prazo","kpiFilterAudit(false,true,false)")+
+    kpi("r","Reincidentes","alert-triangle",fmtINT(rsm.reincidente),`${fmtBRL(rsm.vReincidente)} ignorado`,"kpiFilterAudit(false,false,true)");
 
   // filtros (constrói uma vez)
   const fb=document.getElementById("fbAudit");
@@ -2067,7 +2125,7 @@ function renderAuditoria(){
   audCols.forEach(c=>{
     const ar=st&&st.k===c.k?(st.dir>0?'<i class="ti ti-caret-up-filled ar"></i>':'<i class="ti ti-caret-down-filled ar"></i>'):"";
     const cls=(c.num?'num ':'')+(c.sort===false?'':'sortable');
-    h+=`<th class="${cls}" ${c.sort===false?'':`onclick="doSort('tblAudit','${c.k}');renderAuditoria()"`}>${c.t}${ar}</th>`;
+    h+=`<th class="${cls}" ${c.sort===false?'':`onclick="doSortAudit('${c.k}')"`}>${c.t}${ar}</th>`;
   });
   h+="</tr></thead><tbody>";
   if(!rows.length) h+=`<tr><td colspan="10"><div class="empty"><i class="ti ti-clipboard-check"></i>Nenhum item para os filtros atuais.</div></td></tr>`;
@@ -2099,7 +2157,6 @@ function aplicarPrazo(){
   calcularAuditoria(); saveCobrLocal(); refreshAll();
   toast(`Prazo de reincidência ajustado para ${v} dias.`);
 }
-function aplicarPrazo2(){aplicarPrazo();}
 function renderInsights(){
   const box=document.getElementById("insightsBox");
   const recs=RECORDS, tot=recs.length;
@@ -2217,10 +2274,10 @@ function renderEvolucao(saveOk,loading){
   if(COMP){
     const vEnt=COMP.entreguesTotal.reduce((s,r)=>s+(r.entregue*(r.vu||0)),0)+COMP.parciais.reduce((s,r)=>s+(r.entregue*(r.vu||0)),0);
     cmp.innerHTML=`<div class="cards" style="margin-bottom:8px">
-      ${kpi("g","Entregue por completo","circle-check",fmtINT(COMP.qtdEntTotal),"desde "+fmtDATE(new Date(COMP.dataAnt)))}
-      ${kpi("a","Entrega parcial","adjustments",fmtINT(COMP.qtdParc),"saldo reduziu")}
+      ${kpi("g","Entregue por completo","circle-check",fmtINT(COMP.qtdEntTotal),"desde "+fmtDATE(new Date(COMP.dataAnt)),"scrollToEntregues('total')")}
+      ${kpi("a","Entrega parcial","adjustments",fmtINT(COMP.qtdParc),"saldo reduziu","scrollToEntregues('parc')")}
       ${kpi("b","Pedidos novos","plus",fmtINT(COMP.qtdNovos),"entraram nesta semana")}
-      ${kpi("g","Saiu do estoque parado","businessplan","≈ "+fmtBRL(vEnt),"valor liberado no período")}</div>
+      ${kpi("g","Saiu do estoque parado","businessplan","≈ "+fmtBRL(vEnt),"valor liberado no período","scrollToEntregues('all')")}</div>
       <div class="insight good"><p>Comparação automática entre esta importação (<b>${fmtDATE(dataRef)}</b>) e a anterior (<b>${fmtDATE(new Date(COMP.dataAnt))}</b>). Itens que sumiram do relatório foram entregues; saldo menor = entrega parcial.</p></div>`;
   }else if(!loading){
     cmp.innerHTML=`<div class="insight warn"><h3><i class="ti ti-info-circle"></i> Sem semana anterior para comparar</h3>
