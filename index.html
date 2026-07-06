@@ -994,35 +994,47 @@ async function histSave(){
    consecutivas (GitHub às vezes serve SHA stale por <1 s após um commit) */
 let _histGhSha = null;
 
-/* fallback: commita data/historico.json direto na main (sem branch/PR) */
+/* fallback: commita data/historico.json direto na main (sem branch/PR)
+   Tenta até 2 vezes: se receber 409 (conflito de SHA), re-busca o SHA atual e repete — isso
+   cobre tanto escritas rápidas no mesmo dispositivo quanto dois dispositivos salvando ao mesmo tempo */
 async function publishHistToGithub(payload){
   const cfg = getCfg();
   const api = `https://api.github.com/repos/${cfg.ghRepo}`;
   const headers = {"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
-  try{
-    let sha = _histGhSha;
-    if(!sha){
-      const existing = await fetch(`${api}/contents/data/historico.json?ref=main`,{headers});
-      if(existing.ok) sha = (await existing.json()).sha;
-      else if(existing.status!==404) throw new Error("não consegui ler o arquivo atual (HTTP "+existing.status+")");
-    }
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
+  let tentativas = 2;
+  while(tentativas-- > 0){
+    try{
+      let sha = _histGhSha;
+      if(!sha){
+        const existing = await fetch(`${api}/contents/data/historico.json?ref=main`,{headers});
+        if(existing.ok) sha = (await existing.json()).sha;
+        else if(existing.status!==404) throw new Error("não consegui ler o arquivo atual (HTTP "+existing.status+")");
+      }
 
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
-    const putRes = await fetch(`${api}/contents/data/historico.json`,{method:"PUT",headers,
-      body:JSON.stringify({
-        message:"Atualiza histórico do Entrega Futura (publicado automaticamente)",
-        content, branch:"main", ...(sha?{sha}:{})
-      })});
-    if(!putRes.ok){
-      _histGhSha=null;
-      const dica = putRes.status===403
-        ? " — o token não tem permissão de escrita. Gere um novo PAT fine-grained com \"Contents: Read and write\" marcado (o teste de conexão só confere se você tem acesso ao repo, não se o token tem essa permissão)."
-        : "";
-      throw new Error("não consegui gravar o arquivo (HTTP "+putRes.status+")"+dica);
-    }
-    try{ const rd=await putRes.json(); _histGhSha=rd.content?.sha||null; }catch(e){}
-    return {ok:true};
-  }catch(e){ _histGhSha=null; console.warn("publishHistToGithub:", e.message); return {ok:false, msg:e.message}; }
+      const putRes = await fetch(`${api}/contents/data/historico.json`,{method:"PUT",headers,
+        body:JSON.stringify({
+          message:"Atualiza histórico do Entrega Futura (publicado automaticamente)",
+          content, branch:"main", ...(sha?{sha}:{})
+        })});
+
+      if(putRes.status===409){
+        // conflito de SHA: outro dispositivo gravou entre o GET e o PUT — descarta cache e tenta de novo
+        _histGhSha=null;
+        continue;
+      }
+      if(!putRes.ok){
+        _histGhSha=null;
+        const dica = putRes.status===403
+          ? " — o token não tem permissão de escrita. Gere um novo PAT fine-grained com \"Contents: Read and write\" marcado (o teste de conexão só confere se você tem acesso ao repo, não se o token tem essa permissão)."
+          : "";
+        throw new Error("não consegui gravar o arquivo (HTTP "+putRes.status+")"+dica);
+      }
+      try{ const rd=await putRes.json(); _histGhSha=rd.content?.sha||null; }catch(e){}
+      return {ok:true};
+    }catch(e){ _histGhSha=null; console.warn("publishHistToGithub:", e.message); return {ok:false, msg:e.message}; }
+  }
+  return {ok:false, msg:"conflito de versão após 2 tentativas — recarregue e tente de novo"};
 }
 
 function setSync(status){
@@ -1479,20 +1491,25 @@ async function publishBaseToGithub(){
   if(!cfg.ghToken || !cfg.ghRepo) return false;
   const api=`https://api.github.com/repos/${cfg.ghRepo}`;
   const headers={"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
-  try{
-    let sha=_baseGhSha;
-    if(!sha){
-      const existing=await fetch(`${api}/contents/${BASE_DATA_PATH}?ref=main`,{headers});
-      if(existing.ok) sha=(await existing.json()).sha;
-    }
-    const payload={records:RECORDS, dataRef:dataRef.toISOString(), fileName:document.getElementById("metaFile").textContent};
-    const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    const putRes=await fetch(`${api}/contents/${BASE_DATA_PATH}`,{method:"PUT",headers,
-      body:JSON.stringify({message:"Atualiza base atual do Entrega Futura", content, branch:"main", ...(sha?{sha}:{})})});
-    if(!putRes.ok){ _baseGhSha=null; throw new Error("HTTP "+putRes.status); }
-    try{ const rd=await putRes.json(); _baseGhSha=rd.content?.sha||null; }catch(e){}
-    return true;
-  }catch(e){ _baseGhSha=null; console.warn("publishBaseToGithub:", e.message); return false; }
+  const payload={records:RECORDS, dataRef:dataRef.toISOString(), fileName:document.getElementById("metaFile").textContent};
+  const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  let tentativas=2;
+  while(tentativas-->0){
+    try{
+      let sha=_baseGhSha;
+      if(!sha){
+        const existing=await fetch(`${api}/contents/${BASE_DATA_PATH}?ref=main`,{headers});
+        if(existing.ok) sha=(await existing.json()).sha;
+      }
+      const putRes=await fetch(`${api}/contents/${BASE_DATA_PATH}`,{method:"PUT",headers,
+        body:JSON.stringify({message:"Atualiza base atual do Entrega Futura", content, branch:"main", ...(sha?{sha}:{})})});
+      if(putRes.status===409){ _baseGhSha=null; continue; }
+      if(!putRes.ok){ _baseGhSha=null; throw new Error("HTTP "+putRes.status); }
+      try{ const rd=await putRes.json(); _baseGhSha=rd.content?.sha||null; }catch(e){}
+      return true;
+    }catch(e){ _baseGhSha=null; console.warn("publishBaseToGithub:", e.message); return false; }
+  }
+  return false;
 }
 async function loadBaseFromGithub(){
   const cfg=getCfg();
