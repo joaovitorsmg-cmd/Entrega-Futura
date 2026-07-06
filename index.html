@@ -808,6 +808,8 @@ function snapshotPorMes(recs, atualizadoEm){
 const fmtBRL = v => "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtINT = v => (v||0).toLocaleString("pt-BR");
 const fmtDATE = d => d ? d.toLocaleDateString("pt-BR") : "—";
+// Converte "AAAA-MM-DD" para Date local (sem UTC offset) — evita o -1 dia em fusos negativos
+const parseISOLocal = s => s ? new Date(s + "T00:00:00") : null;
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ============================================================
@@ -1315,10 +1317,10 @@ async function deletarImportacao(dataStr){
   if(!confirm(`Excluir a importação de ${dataStr} do histórico?\n\nEsta ação não pode ser desfeita — a entrada será removida do GitHub.`)) return;
   HIST.semanas=(HIST.semanas||[]).filter(s=>s.data!==dataStr);
   if(HIST.ultimoDetalhe && HIST.ultimoDetalhe.data===dataStr){
-    delete HIST.ultimoDetalhe;
-    saveUltimoDetalheLocal(); // limpa localStorage para não restaurar na recarga
+    HIST.ultimoDetalhe=null; // null (não delete) para JSON.stringify escrever "null" no localStorage
+    saveUltimoDetalheLocal();
   }
-  if(COMP && COMP.dataAnt===dataStr) COMP=null; // descarta comparação baseada na entrada excluída
+  COMP=null; // qualquer exclusão invalida a comparação em vigor
   const ok=await histSave();
   lastSyncOk=ok;
   if(ok) toast("Importação excluída e histórico atualizado no GitHub.");
@@ -1471,22 +1473,26 @@ function loadLocalSnapshot(){
 /* ---------- base compartilhada via GitHub: assim qualquer pessoa que abrir o link vê a
    mesma base, sem precisar importar o XLS nela mesma (o localStorage acima é só por navegador) ---------- */
 const BASE_DATA_PATH="data/base-atual.json";
+let _baseGhSha=null; // SHA cacheado do último PUT bem-sucedido de base-atual.json
 async function publishBaseToGithub(){
   const cfg=getCfg();
   if(!cfg.ghToken || !cfg.ghRepo) return false;
   const api=`https://api.github.com/repos/${cfg.ghRepo}`;
   const headers={"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
   try{
-    let sha;
-    const existing=await fetch(`${api}/contents/${BASE_DATA_PATH}?ref=main`,{headers});
-    if(existing.ok) sha=(await existing.json()).sha;
+    let sha=_baseGhSha;
+    if(!sha){
+      const existing=await fetch(`${api}/contents/${BASE_DATA_PATH}?ref=main`,{headers});
+      if(existing.ok) sha=(await existing.json()).sha;
+    }
     const payload={records:RECORDS, dataRef:dataRef.toISOString(), fileName:document.getElementById("metaFile").textContent};
     const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
     const putRes=await fetch(`${api}/contents/${BASE_DATA_PATH}`,{method:"PUT",headers,
       body:JSON.stringify({message:"Atualiza base atual do Entrega Futura", content, branch:"main", ...(sha?{sha}:{})})});
-    if(!putRes.ok) throw new Error("HTTP "+putRes.status);
+    if(!putRes.ok){ _baseGhSha=null; throw new Error("HTTP "+putRes.status); }
+    try{ const rd=await putRes.json(); _baseGhSha=rd.content?.sha||null; }catch(e){}
     return true;
-  }catch(e){ console.warn("publishBaseToGithub:", e.message); return false; }
+  }catch(e){ _baseGhSha=null; console.warn("publishBaseToGithub:", e.message); return false; }
 }
 async function loadBaseFromGithub(){
   const cfg=getCfg();
@@ -1954,7 +1960,7 @@ function renderConsulta(){
   const filial=BASE[sigla]?BASE[sigla].loja:(RECORDS.find(r=>r.sigla===sigla)||{}).filial||sigla;
   document.getElementById("consultaCards").innerHTML=
     kpi("","Já cobrado (valor)","cash",fmtBRL(d.valorTotal),`${fmtINT(d.itens.length)} item(ns) com cobrança registrada`,"scrollToTable('tblConsulta')")+
-    kpi("","Cobrado desde","calendar-event",d.primeira?fmtDATE(new Date(d.primeira)):"—",d.ultima?`última cobrança em ${fmtDATE(new Date(d.ultima))}`:"sem registro","scrollToTable('tblConsulta')")+
+    kpi("","Cobrado desde","calendar-event",d.primeira?fmtDATE(parseISOLocal(d.primeira)):"—",d.ultima?`última cobrança em ${fmtDATE(parseISOLocal(d.ultima))}`:"sem registro","scrollToTable('tblConsulta')")+
     kpi("","Vezes cobrado","repeat",fmtINT(d.vezesTotal),`${fmtINT(d.aguardando)} aguardando · ${fmtINT(d.reincidentes)} reincidente(s)`,"scrollToTable('tblConsulta')")+
     kpi(d.naoCobrados?"r":"g","Itens sem cobrança","alert-circle",fmtINT(d.naoCobrados),"ver na auditoria",d.naoCobrados?"kpiAuditFilial()":"");
   if(!sortState.tblConsulta) sortState.tblConsulta={k:"dataCobr",dir:-1};
@@ -1979,8 +1985,8 @@ function renderConsulta(){
     h+=`<tr><td><span class="pill ${AUD_PILL[r.audit.st]}">${AUD_LABEL[r.audit.st]}</span></td>
       <td>${esc(r.pedido)}</td><td>${esc(r.cliente||"")}</td><td>${esc(r.produto||r.codProd||"")}</td>
       <td class="num">${fmtINT(r.audit.vezes||0)}</td>
-      <td>${r.audit.primeira?fmtDATE(new Date(r.audit.primeira)):"—"}</td>
-      <td>${r.audit.dataCobr?fmtDATE(new Date(r.audit.dataCobr)):"—"}</td>
+      <td>${r.audit.primeira?fmtDATE(parseISOLocal(r.audit.primeira)):"—"}</td>
+      <td>${r.audit.dataCobr?fmtDATE(parseISOLocal(r.audit.dataCobr)):"—"}</td>
       <td class="money">${fmtBRL(r.valorEntregar)}</td></tr>`;
   });
   document.getElementById("tblConsulta").innerHTML=h+"</tbody>";
@@ -2118,8 +2124,8 @@ const AUD_PILL={nao:"nao",aguardando:"aguard",reincidente:"reinc"};
 function auditBadge(r){
   const a=r.audit||{st:"nao"};
   let extra="";
-  if(a.st==="aguardando") extra=`<div class="cobr-info">cobrado em <b>${fmtDATE(new Date(a.dataCobr))}</b> · há ${a.dias}d${a.vezes>1?` · ${a.vezes}x`:""}</div>`;
-  else if(a.st==="reincidente") extra=`<div class="cobr-info">cobrado em <b>${fmtDATE(new Date(a.dataCobr))}</b> · há <b style="color:var(--red)">${a.dias}d</b>${a.vezes>1?` · já cobrado ${a.vezes}x`:""}</div>`;
+  if(a.st==="aguardando") extra=`<div class="cobr-info">cobrado em <b>${fmtDATE(parseISOLocal(a.dataCobr))}</b> · há ${a.dias}d${a.vezes>1?` · ${a.vezes}x`:""}</div>`;
+  else if(a.st==="reincidente") extra=`<div class="cobr-info">cobrado em <b>${fmtDATE(parseISOLocal(a.dataCobr))}</b> · há <b style="color:var(--red)">${a.dias}d</b>${a.vezes>1?` · já cobrado ${a.vezes}x`:""}</div>`;
   return `<span class="pill ${AUD_PILL[a.st]}">${AUD_LABEL[a.st]}</span>${extra}`;
 }
 function markButton(r){
@@ -2354,17 +2360,18 @@ function renderEvolucao(saveOk,loading){
   if(COMP){
     const vEnt=COMP.entreguesTotal.reduce((s,r)=>s+(r.entregue*(r.vu||0)),0)+COMP.parciais.reduce((s,r)=>s+(r.entregue*(r.vu||0)),0);
     cmp.innerHTML=`<div class="cards" style="margin-bottom:8px">
-      ${kpi("g","Entregue por completo","circle-check",fmtINT(COMP.qtdEntTotal),"desde "+fmtDATE(new Date(COMP.dataAnt)),"scrollToEntregues('total')")}
+      ${kpi("g","Entregue por completo","circle-check",fmtINT(COMP.qtdEntTotal),"desde "+fmtDATE(parseISOLocal(COMP.dataAnt)),"scrollToEntregues('total')")}
       ${kpi("a","Entrega parcial","adjustments",fmtINT(COMP.qtdParc),"saldo reduziu","scrollToEntregues('parc')")}
       ${kpi("b","Pedidos novos","plus",fmtINT(COMP.qtdNovos),"entraram nesta semana")}
       ${kpi("g","Saiu do estoque parado","businessplan","≈ "+fmtBRL(vEnt),"valor liberado no período","scrollToEntregues('all')")}</div>
-      <div class="insight good"><p>Comparação automática entre esta importação (<b>${fmtDATE(dataRef)}</b>) e a anterior (<b>${fmtDATE(new Date(COMP.dataAnt))}</b>). Itens que sumiram do relatório foram entregues; saldo menor = entrega parcial.</p></div>`;
+      <div class="insight good"><p>Comparação automática entre esta importação (<b>${fmtDATE(dataRef)}</b>) e a anterior (<b>${fmtDATE(parseISOLocal(COMP.dataAnt))}</b>). Itens que sumiram do relatório foram entregues; saldo menor = entrega parcial.</p></div>`;
   }else if(!loading){
     cmp.innerHTML=`<div class="insight warn"><h3><i class="ti ti-info-circle"></i> Sem semana anterior para comparar</h3>
       <p>Esta é a primeira importação registrada. A partir da próxima vez que você subir um relatório, o painel mostra aqui o que foi entregue e o que continua parado — incluindo pedidos específicos.</p></div>`;
   }
   if(saveOk===true) status.innerHTML=`<i class="ti ti-brand-github"></i> Histórico sincronizado no GitHub. <b>${HIST.semanas.length}</b> importação(ões) registrada(s).`;
   else if(saveOk===false){const cfg=getCfg();status.innerHTML=(cfg.ghToken&&cfg.ghRepo)?`<i class="ti ti-cloud-x"></i> Não consegui gravar no GitHub agora. A comparação desta sessão continua válida; tentará de novo na próxima importação.`:`<i class="ti ti-device-floppy"></i> Histórico salvo localmente. Configure o GitHub na aba <b>Configuração</b> para sincronizar entre dispositivos.`;}
+  else if(!loading) status.innerHTML=`<i class="ti ti-refresh"></i> Verificando sincronização…`;
 
   if(!sortState.tblHist) sortState.tblHist={k:"data",dir:-1};
   const hst=sortState.tblHist;
@@ -2381,8 +2388,8 @@ function renderEvolucao(saveOk,loading){
   const semaSort=(HIST.semanas||[]).slice().sort((a,b)=>a.data<b.data?-1:1);
   semanas.forEach(s=>{const idx=semaSort.findIndex(x=>x.data===s.data);const prev=semaSort[idx-1];const d=prev?s.itens-prev.itens:null;
     const dt=d==null?'<span class="muted">—</span>':`<span style="color:${d<0?'var(--green)':d>0?'var(--red)':'var(--text3)'}">${d>0?'+':''}${fmtINT(d)}</span>`;
-    const impEm=s.importadoEm?fmtDATE(new Date(s.importadoEm)):`<span class="muted">—</span>`;
-    h+=`<tr><td class="strong">${fmtDATE(new Date(s.data))}</td><td>${impEm}</td><td class="num">${fmtINT(s.itens)}</td>
+    const impEm=s.importadoEm?fmtDATE(parseISOLocal(s.importadoEm)):`<span class="muted">—</span>`;
+    h+=`<tr><td class="strong">${fmtDATE(parseISOLocal(s.data))}</td><td>${impEm}</td><td class="num">${fmtINT(s.itens)}</td>
       <td class="num" style="color:${s.atrasados?'var(--red)':'var(--text3)'}">${fmtINT(s.atrasados)}</td>
       <td class="money" style="color:var(--green-dk)">${fmtBRL(s.vEntregar)}</td>
       <td class="money" style="color:var(--red-dk)">${fmtBRL(s.vRetido)}</td><td class="num">${dt}</td>
@@ -2424,7 +2431,7 @@ function renderMeses(){
       <td class="money">${fmtBRL(v.vParado)}</td>
       <td class="money" style="color:var(--green-dk)">${fmtBRL(v.vEntregar)}</td>
       <td class="money" style="color:var(--red-dk)">${fmtBRL(v.vRetido)}</td>
-      <td class="muted">${fmtDATE(new Date(v.atualizadoEm))}</td></tr>`;
+      <td class="muted">${fmtDATE(parseISOLocal(v.atualizadoEm))}</td></tr>`;
   });
   document.getElementById("tblMeses").innerHTML=h+"</tbody>";
 }
@@ -2476,7 +2483,7 @@ function renderEntregues(){
     <td class="num">${r.tipo==="total"?'<span style="color:var(--green)">0</span>':fmtINT(r.para)}</td>
     <td class="money" style="color:var(--green-dk)">${fmtBRL(r.entregue*(r.vu||0))}</td>
     <td>${cb.cobrado
-      ? `<span class="pill aguard" title="1ª cobrança em ${fmtDATE(new Date(cb.primeira))}">cobrado ${fmtINT(cb.vezes)}x · última ${fmtDATE(new Date(cb.ultima))}</span>`
+      ? `<span class="pill aguard" title="1ª cobrança em ${fmtDATE(parseISOLocal(cb.primeira))}">cobrado ${fmtINT(cb.vezes)}x · última ${fmtDATE(parseISOLocal(cb.ultima))}</span>`
       : `<span class="pill nao">nunca cobrado</span>`}</td></tr>`;});
   tbl.innerHTML=h+"</tbody>";
 }
@@ -2686,7 +2693,7 @@ function exportCSV(){
   RECORDS.forEach(r=>{csv+=cols.map(([k])=>{let v=r[k];
     if(k==="emissao")v=fmtDATE(v);if(k==="atrasado")v=v?"SIM":"nao";if(k==="status")v=STAT_LABEL[v];
     if(k==="_auditSt")v=r.status==="ret"?"-":AUD_LABEL[r.audit?r.audit.st:"nao"];
-    if(k==="_auditData")v=r.audit&&r.audit.dataCobr?fmtDATE(new Date(r.audit.dataCobr)):"";
+    if(k==="_auditData")v=r.audit&&r.audit.dataCobr?fmtDATE(parseISOLocal(r.audit.dataCobr)):"";
     if(k==="_auditVezes")v=r.audit?r.audit.vezes:0;
     if(typeof v==="number")v=String(v).replace(".",",");
     v=String(v==null?"":v).replace(/"/g,'""');return /[;\n"]/.test(v)?`"${v}"`:v;}).join(sep)+"\n";});
