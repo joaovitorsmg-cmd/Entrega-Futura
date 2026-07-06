@@ -964,20 +964,33 @@ async function histLoad(){
     // mescla cobranças feitas neste navegador e ainda não finalizadas
     loadCobrLocal();
     syncPrazoUI();
+    _histGhSha=null; // força re-fetch do SHA na próxima escrita (outro dispositivo pode ter gravado)
     return true;
   }catch(e){ console.warn("histLoad:", e.message); setSync("err"); loadCobrLocal(); loadUltimoDetalheLocal(); syncPrazoUI(); return false; }
 }
 
+/* lock para serializar escritas concorrentes — evita 409 quando duas ações
+   (ex: deletar importação + Finalizar cobranças) disparam histSave() quase ao mesmo tempo */
+let _histSaveLock = null;
 async function histSave(){
-  const cfg = getCfg();
-  if(!cfg.ghToken || !cfg.ghRepo){ setSync("noconfig"); return false; }
-  // inclui ultimoDetalhe: GitHub não tem limite de tamanho
-  const full = { [HIST_FIELD]: { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
-  const r = await publishHistToGithub(full);
-  setSync(r.ok ? "ok" : "err");
-  if(!r.ok) toast("Falha ao sincronizar com o GitHub: "+r.msg);
-  return r.ok;
+  while(_histSaveLock) await _histSaveLock;
+  let _resolveLock;
+  _histSaveLock = new Promise(r => _resolveLock = r);
+  try{
+    const cfg = getCfg();
+    if(!cfg.ghToken || !cfg.ghRepo){ setSync("noconfig"); return false; }
+    // inclui ultimoDetalhe: GitHub não tem limite de tamanho
+    const full = { [HIST_FIELD]: { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
+    const r = await publishHistToGithub(full);
+    setSync(r.ok ? "ok" : "err");
+    if(!r.ok) toast("Falha ao sincronizar com o GitHub: "+r.msg);
+    return r.ok;
+  }finally{ _resolveLock(); _histSaveLock=null; }
 }
+
+/* SHA cacheado do último PUT bem-sucedido — evita GET redundante em escritas rápidas
+   consecutivas (GitHub às vezes serve SHA stale por <1 s após um commit) */
+let _histGhSha = null;
 
 /* fallback: commita data/historico.json direto na main (sem branch/PR) */
 async function publishHistToGithub(payload){
@@ -985,10 +998,12 @@ async function publishHistToGithub(payload){
   const api = `https://api.github.com/repos/${cfg.ghRepo}`;
   const headers = {"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
   try{
-    let sha;
-    const existing = await fetch(`${api}/contents/data/historico.json?ref=main`,{headers});
-    if(existing.ok) sha = (await existing.json()).sha;
-    else if(existing.status!==404) throw new Error("não consegui ler o arquivo atual (HTTP "+existing.status+")");
+    let sha = _histGhSha;
+    if(!sha){
+      const existing = await fetch(`${api}/contents/data/historico.json?ref=main`,{headers});
+      if(existing.ok) sha = (await existing.json()).sha;
+      else if(existing.status!==404) throw new Error("não consegui ler o arquivo atual (HTTP "+existing.status+")");
+    }
 
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
     const putRes = await fetch(`${api}/contents/data/historico.json`,{method:"PUT",headers,
@@ -997,13 +1012,15 @@ async function publishHistToGithub(payload){
         content, branch:"main", ...(sha?{sha}:{})
       })});
     if(!putRes.ok){
+      _histGhSha=null;
       const dica = putRes.status===403
         ? " — o token não tem permissão de escrita. Gere um novo PAT fine-grained com \"Contents: Read and write\" marcado (o teste de conexão só confere se você tem acesso ao repo, não se o token tem essa permissão)."
         : "";
       throw new Error("não consegui gravar o arquivo (HTTP "+putRes.status+")"+dica);
     }
+    try{ const rd=await putRes.json(); _histGhSha=rd.content?.sha||null; }catch(e){}
     return {ok:true};
-  }catch(e){ console.warn("publishHistToGithub:", e.message); return {ok:false, msg:e.message}; }
+  }catch(e){ _histGhSha=null; console.warn("publishHistToGithub:", e.message); return {ok:false, msg:e.message}; }
 }
 
 function setSync(status){
@@ -1278,13 +1295,13 @@ function loadUltimoDetalheLocal(){
     HIST.ultimoDetalhe = JSON.parse(raw);
   }catch(e){ console.warn("loadUltimoDetalheLocal:", e.message); }
 }
-function zerarCobranças(){
+async function zerarCobranças(){
   if(!confirm("Zerar todas as cobranças registradas? Isso apaga o histórico de cobranças deste dispositivo e do GitHub. Esta ação não pode ser desfeita.")) return;
   COBR={};
   saveCobrLocal();
   calcularAuditoria();
   refreshAll();
-  histSave();
+  await histSave();
   toast("Todas as cobranças foram zeradas.");
 }
 async function persistirCobranca(){
@@ -1297,8 +1314,13 @@ async function persistirCobranca(){
 async function deletarImportacao(dataStr){
   if(!confirm(`Excluir a importação de ${dataStr} do histórico?\n\nEsta ação não pode ser desfeita — a entrada será removida do GitHub.`)) return;
   HIST.semanas=(HIST.semanas||[]).filter(s=>s.data!==dataStr);
-  if(HIST.ultimoDetalhe && HIST.ultimoDetalhe.data===dataStr) delete HIST.ultimoDetalhe;
+  if(HIST.ultimoDetalhe && HIST.ultimoDetalhe.data===dataStr){
+    delete HIST.ultimoDetalhe;
+    saveUltimoDetalheLocal(); // limpa localStorage para não restaurar na recarga
+  }
+  if(COMP && COMP.dataAnt===dataStr) COMP=null; // descarta comparação baseada na entrada excluída
   const ok=await histSave();
+  lastSyncOk=ok;
   if(ok) toast("Importação excluída e histórico atualizado no GitHub.");
   else toast("Importação removida localmente, mas não consegui gravar no GitHub agora.");
   renderEvolucao(ok);
