@@ -942,7 +942,7 @@ async function histLoad(){
   try{
     const res = await fetch(`https://raw.githubusercontent.com/${cfg.ghRepo}/main/data/historico.json?t=${Date.now()}`);
     if(!res.ok){
-      if(res.status === 404){ setSync("empty"); loadCobrLocal(); syncPrazoUI(); return false; }
+      if(res.status === 404){ setSync("empty"); loadCobrLocal(); loadUltimoDetalheLocal(); syncPrazoUI(); return false; }
       throw new Error("HTTP "+res.status);
     }
     const data = await res.json();
