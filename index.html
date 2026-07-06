@@ -1090,13 +1090,16 @@ histLoad();
    exibimos os dados, sem regravar o histórico nem republicar nada (evita abrir um PR
    novo a cada visita/recarregamento da página). */
 async function registrarImportacao(isNewImport){
-  await histLoad();
+  histLoadPending=true;
+  const loaded=await histLoad();
+  histLoadPending=false;
   if(!isNewImport){
     calcularAuditoria();
     renderResumo();
     renderAuditoria();
     ["cobrar","retidos","base","recorrencia","filiais","consulta"].forEach(pg=>{ if(RENDERED_PAGES.has(pg)) PAGE_RENDERERS[pg](); });
-    if(RENDERED_PAGES.has("evolucao")) renderEvolucao(true);
+    lastSyncOk=loaded;
+    if(RENDERED_PAGES.has("evolucao")) renderEvolucao(lastSyncOk);
     return;
   }
   const hoje = dataRef.toISOString().slice(0,10);
@@ -1142,6 +1145,7 @@ async function registrarImportacao(isNewImport){
   }
 }
 let lastSyncOk=null;
+let histLoadPending=false;
 
 /* cruza um item (pela mesma chave usada no COBR) com o histórico de cobrança,
    pra responder "isso que saiu/baixou, eu já tinha cobrado?" na Conferência */
@@ -1358,6 +1362,17 @@ function kpiAuditFilial(){
   },50);
 }
 
+function scrollToTable(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const wrap=el.closest('.tablewrap')||el.querySelector('.tablewrap')||el;
+  wrap.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function kpiRetidosSoAtr(){
+  const chip=document.querySelector('#fbRetidos .chip[data-f="soatr"]');
+  if(chip && !chip.classList.contains('on')){chip.classList.add('on');rerender();}
+}
+
 /* ============================================================
    CARREGAMENTO DE ARQUIVO
    ============================================================ */
@@ -1468,7 +1483,7 @@ const PAGE_RENDERERS={
   recorrencia:()=>renderRecor(),
   consulta:()=>renderConsulta(),
   conferencia:()=>renderConferencia(),
-  evolucao:()=>renderEvolucao(lastSyncOk,true)
+  evolucao:()=>renderEvolucao(lastSyncOk,histLoadPending)
 };
 let RENDERED_PAGES=new Set();
 function ensurePageRendered(pg){
@@ -1777,8 +1792,8 @@ function renderCobrar(){
   if(!sortState.tblCobrar) sortState.tblCobrar={k:"valorEntregar",dir:-1};
   const ct=rows.filter(r=>r.status==="total"),cp=rows.filter(r=>r.status==="parc");
   document.getElementById("cardsCobrar").innerHTML=
-    kpi("b","Itens a cobrar","cash",fmtINT(rows.length),`${ct.length} total · ${cp.length} parcial`)+
-    kpi("g","Valor a liberar","businessplan",fmtBRL(rows.reduce((s,r)=>s+r.valorEntregar,0)),"já pago — force a entrega")+
+    kpi("b","Itens a cobrar","cash",fmtINT(rows.length),`${ct.length} total · ${cp.length} parcial`,"scrollToTable('tblCobrar')")+
+    kpi("g","Valor a liberar","businessplan",fmtBRL(rows.reduce((s,r)=>s+r.valorEntregar,0)),"ver itens na tabela","scrollToTable('tblCobrar')")+
     kpi("r","Atrasados na lista","alarm",fmtINT(rows.filter(r=>r.atrasado).length),"clique para filtrar","kpiCobrarSoAtr()");
   detailTable("tblCobrar",rows);
 }
@@ -1790,9 +1805,9 @@ function renderRetidos(){
   const atr=rows.filter(r=>r.atrasado).length;
   const cr=document.getElementById("cardsRetidos");
   if(cr) cr.innerHTML=
-    kpi("r","Itens retidos","lock",fmtINT(rows.length),"sem pagamento — não entregar")+
-    kpi("r","Valor retido","businessplan",fmtBRL(vRet),"ainda em poder da empresa")+
-    kpi("a","Retidos atrasados","alarm",fmtINT(atr),"acima do limite da linha");
+    kpi("r","Itens retidos","lock",fmtINT(rows.length),"sem pagamento — não entregar","scrollToTable('tblRetidos')")+
+    kpi("r","Valor retido","businessplan",fmtBRL(vRet),"ainda em poder da empresa","scrollToTable('tblRetidos')")+
+    kpi("a","Retidos atrasados","alarm",fmtINT(atr),"clique para filtrar","kpiRetidosSoAtr()");
   detailTable("tblRetidos",rows);
 }
 function renderBase(){
@@ -1903,13 +1918,25 @@ function renderConsulta(){
   const d=dadosCobrancaFilial(sigla);
   const filial=BASE[sigla]?BASE[sigla].loja:(RECORDS.find(r=>r.sigla===sigla)||{}).filial||sigla;
   document.getElementById("consultaCards").innerHTML=
-    kpi("","Já cobrado (valor)","cash",fmtBRL(d.valorTotal),`${fmtINT(d.itens.length)} item(ns) com cobrança registrada`)+
-    kpi("","Cobrado desde","calendar-event",d.primeira?fmtDATE(new Date(d.primeira)):"—",d.ultima?`última cobrança em ${fmtDATE(new Date(d.ultima))}`:"sem registro")+
-    kpi("","Vezes cobrado","repeat",fmtINT(d.vezesTotal),`${fmtINT(d.aguardando)} aguardando · ${fmtINT(d.reincidentes)} reincidente(s)`)+
+    kpi("","Já cobrado (valor)","cash",fmtBRL(d.valorTotal),`${fmtINT(d.itens.length)} item(ns) com cobrança registrada`,"scrollToTable('tblConsulta')")+
+    kpi("","Cobrado desde","calendar-event",d.primeira?fmtDATE(new Date(d.primeira)):"—",d.ultima?`última cobrança em ${fmtDATE(new Date(d.ultima))}`:"sem registro","scrollToTable('tblConsulta')")+
+    kpi("","Vezes cobrado","repeat",fmtINT(d.vezesTotal),`${fmtINT(d.aguardando)} aguardando · ${fmtINT(d.reincidentes)} reincidente(s)`,"scrollToTable('tblConsulta')")+
     kpi(d.naoCobrados?"r":"g","Itens sem cobrança","alert-circle",fmtINT(d.naoCobrados),"ver na auditoria",d.naoCobrados?"kpiAuditFilial()":"");
-  const itensOrd=[...d.itens].sort((a,b)=>(b.audit.dataCobr||"").localeCompare(a.audit.dataCobr||""));
-  let h=`<thead><tr><th>Status</th><th>Pedido</th><th>Cliente</th><th>Produto</th>
-    <th class="num">Vezes</th><th>1ª cobrança</th><th>Última cobrança</th><th class="num">Valor a entregar</th></tr></thead><tbody>`;
+  if(!sortState.tblConsulta) sortState.tblConsulta={k:"dataCobr",dir:-1};
+  const cst=sortState.tblConsulta;
+  const itensOrd=[...d.itens].sort((a,b)=>{
+    const {k,dir}=cst;
+    let va,vb;
+    if(k==="valorEntregar"){va=a.valorEntregar;vb=b.valorEntregar;}
+    else if(k==="vezes"){va=a.audit.vezes||0;vb=b.audit.vezes||0;}
+    else if(k==="primeira"){va=a.audit.primeira||"";vb=b.audit.primeira||"";}
+    else if(k==="dataCobr"){va=a.audit.dataCobr||"";vb=b.audit.dataCobr||"";}
+    else if(k==="st"){va=a.audit.st||"";vb=b.audit.st||"";}
+    else{va=(a[k]||"").toString().toLowerCase();vb=(b[k]||"").toString().toLowerCase();}
+    return va<vb?-dir:va>vb?dir:0;
+  });
+  const th=(k,l,c)=>thSort(k,l,c,cst,"doSortConsulta");
+  let h=`<thead><tr>${th("st","Status","")}${th("pedido","Pedido","")}${th("cliente","Cliente","")}${th("produto","Produto","")}${th("vezes","Vezes","num")}${th("primeira","1ª cobrança","")}${th("dataCobr","Última cobrança","")}${th("valorEntregar","Valor a entregar","num")}</tr></thead><tbody>`;
   if(!itensOrd.length){
     h+=`<tr><td colspan="8" class="muted" style="text-align:center;padding:18px">Nenhum item com cobrança registrada para ${esc(sigla)}.</td></tr>`;
   }
@@ -1997,20 +2024,38 @@ function renderRecor(){
 }
 function toggleRecor(k){recorOpen[k]=!recorOpen[k];renderRecor();}
 function doSortRecor(k){const s=sortState.tblRecor;sortState.tblRecor=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderRecor();}
+function doSortConsulta(k){const s=sortState.tblConsulta;sortState.tblConsulta=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderConsulta();}
+function doSortHist(k){const s=sortState.tblHist;sortState.tblHist=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderEvolucao(lastSyncOk);}
+function doSortMeses(k){const s=sortState.tblMeses;sortState.tblMeses=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderMeses();}
+function doSortEntregues(k){const s=sortState.tblEntregues;sortState.tblEntregues=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderEntregues();}
+function doSortConf(k){const s=sortState.tblConf;sortState.tblConf=(s&&s.k===k)?{k,dir:-s.dir}:{k,dir:1};renderConferencia();}
+function thSort(k,lbl,cls,cur,fn){const on=cur&&cur.k===k;const ar=on?(cur.dir>0?'<i class="ti ti-caret-up-filled ar"></i>':'<i class="ti ti-caret-down-filled ar"></i>'):"";return `<th class="${cls||''} sortable" onclick="${fn}('${k}')">${lbl}${ar}</th>`;}
 
 /* ============================================================
    CONFERÊNCIA DA BASE
    ============================================================ */
 function renderConferencia(){
-  const sigs=[...new Set(RECORDS.map(r=>r.sigla))].sort();
+  const allSigs=[...new Set(RECORDS.map(r=>r.sigla))].sort();
   let semBase=[], okCount=0, campos=["auditor","regional","gerente","supervisor"];
-  let rowsH="";
-  sigs.forEach(s=>{
+  if(!sortState.tblConf) sortState.tblConf={k:"sigla",dir:1};
+  const cst=sortState.tblConf;
+  const rows=allSigs.map(s=>{
     const b=BASE[s];
-    if(!b){semBase.push(s);return;}
-    const faltas=campos.filter(c=>!b[c]);
-    const ok=faltas.length===0;
+    if(!b){semBase.push(s);return null;}
+    const ok=campos.every(c=>!!b[c]);
     if(ok) okCount++;
+    return {s,b,ok,itens:RECORDS.filter(r=>r.sigla===s).length};
+  }).filter(Boolean);
+  rows.sort((a,b)=>{
+    const {k,dir}=cst;
+    if(k==="ok") return ((a.ok?1:0)-(b.ok?1:0))*dir;
+    if(k==="itens") return (a.itens-b.itens)*dir;
+    const va=(a.b[k]||a.s||"").toLowerCase(), vb=(b.b[k]||b.s||"").toLowerCase();
+    return va<vb?-dir:va>vb?dir:0;
+  });
+  const thC=(k,l,c)=>thSort(k,l,c,cst,"doSortConf");
+  let rowsH="";
+  rows.forEach(({s,b,ok,itens})=>{
     rowsH+=`<tr>
       <td>${ok?'<span class="okcheck"><i class="ti ti-circle-check-filled"></i></span>':'<span class="warncheck"><i class="ti ti-alert-triangle-filled"></i></span>'}</td>
       <td class="strong"><span class="sg" style="color:var(--brand)">${s}</span> ${esc(b.loja)}</td>
@@ -2018,15 +2063,15 @@ function renderConferencia(){
       <td>${esc(b.regional)||'<span style="color:var(--red)">—</span>'}</td>
       <td>${esc(b.gerente)||'<span style="color:var(--red)">—</span>'}</td>
       <td>${esc(b.supervisor)||'<span style="color:var(--red)">—</span>'}</td>
-      <td>${fmtINT(RECORDS.filter(r=>r.sigla===s).length)}</td></tr>`;
+      <td class="num">${fmtINT(itens)}</td></tr>`;
   });
   let html=`<div class="cards" style="margin-bottom:18px">
-    ${kpi("g","Filiais conferidas OK","circle-check",fmtINT(okCount),"auditor, regional, gerente e supervisor preenchidos")}
+    ${kpi("g","Filiais conferidas OK","circle-check",fmtINT(okCount),"auditor, regional, gerente e supervisor preenchidos","scrollToTable('confBox')")}
     ${kpi(semBase.length?"r":"g","Filiais sem cadastro na base","alert-triangle",fmtINT(semBase.length),semBase.length?semBase.join(", "):"todas cadastradas",semBase.length?"document.getElementById('confAlert')?.scrollIntoView({behavior:'smooth'})":"")}
-    ${kpi("b","Filiais no relatório","building-store",fmtINT(sigs.length),"com itens em aberto")}</div>`;
+    ${kpi("b","Filiais no relatório","building-store",fmtINT(allSigs.length),"ver agrupado por filial","gotoPage('filiais')")}</div>`;
   if(semBase.length) html+=`<div class="insight crit" id="confAlert"><h3><i class="ti ti-alert-triangle"></i> Filiais do relatório ausentes na base</h3>
     <p>Os itens destas filiais aparecem sem auditor/regional/gerente/supervisor. Inclua-as na base: <b>${semBase.join(", ")}</b></p></div>`;
-  html+=`<div class="tablewrap full"><table><thead><tr><th>OK</th><th>Filial</th><th>Auditor</th><th>Regional</th><th>Gerente</th><th>Supervisor</th><th class="num">Itens</th></tr></thead><tbody>${rowsH}</tbody></table></div>`;
+  html+=`<div class="tablewrap full"><table><thead><tr>${thC("ok","OK","")}${thC("sigla","Filial","")}${thC("auditor","Auditor","")}${thC("regional","Regional","")}${thC("gerente","Gerente","")}${thC("supervisor","Supervisor","")}${thC("itens","Itens","num")}</tr></thead><tbody>${rowsH}</tbody></table></div>`;
   document.getElementById("confBox").innerHTML=html;
 }
 
@@ -2284,13 +2329,21 @@ function renderEvolucao(saveOk,loading){
       <p>Esta é a primeira importação registrada. A partir da próxima vez que você subir um relatório, o painel mostra aqui o que foi entregue e o que continua parado — incluindo pedidos específicos.</p></div>`;
   }
   if(saveOk===true) status.innerHTML=`<i class="ti ti-brand-github"></i> Histórico sincronizado no GitHub. <b>${HIST.semanas.length}</b> importação(ões) registrada(s).`;
-  else if(saveOk===false) status.innerHTML=`<i class="ti ti-cloud-x"></i> Não consegui gravar no GitHub agora. A comparação desta sessão continua válida; tentará de novo na próxima importação.`;
+  else if(saveOk===false){const cfg=getCfg();status.innerHTML=(cfg.ghToken&&cfg.ghRepo)?`<i class="ti ti-cloud-x"></i> Não consegui gravar no GitHub agora. A comparação desta sessão continua válida; tentará de novo na próxima importação.`:`<i class="ti ti-device-floppy"></i> Histórico salvo localmente. Configure o GitHub na aba <b>Configuração</b> para sincronizar entre dispositivos.`;}
 
-  const semanas=(HIST.semanas||[]).slice().reverse();
-  let h=`<thead><tr><th>Data</th><th class="num">Itens</th><th class="num">Atrasados</th>
-    <th class="money">A entregar</th><th class="money">Retido</th><th class="num">Δ itens</th></tr></thead><tbody>`;
+  if(!sortState.tblHist) sortState.tblHist={k:"data",dir:-1};
+  const hst=sortState.tblHist;
+  let semanas=(HIST.semanas||[]).slice();
+  if(hst.k==="data") semanas.sort((a,b)=>a.data<b.data?hst.dir:-hst.dir);
+  else if(hst.k==="itens") semanas.sort((a,b)=>(a.itens-b.itens)*hst.dir);
+  else if(hst.k==="atrasados") semanas.sort((a,b)=>(a.atrasados-b.atrasados)*hst.dir);
+  else if(hst.k==="vEntregar") semanas.sort((a,b)=>(a.vEntregar-b.vEntregar)*hst.dir);
+  else if(hst.k==="vRetido") semanas.sort((a,b)=>(a.vRetido-b.vRetido)*hst.dir);
+  const thH=(k,l,c)=>thSort(k,l,c,hst,"doSortHist");
+  let h=`<thead><tr>${thH("data","Data","")}${thH("itens","Itens","num")}${thH("atrasados","Atrasados","num")}${thH("vEntregar","A entregar","money")}${thH("vRetido","Retido","money")}<th class="num">Δ itens</th></tr></thead><tbody>`;
   if(!semanas.length) h+=`<tr><td colspan="6"><div class="empty"><i class="ti ti-clock"></i>Nenhuma importação registrada ainda.</div></td></tr>`;
-  semanas.forEach((s,i)=>{const prev=semanas[i+1];const d=prev?s.itens-prev.itens:null;
+  const semaSort=(HIST.semanas||[]).slice().sort((a,b)=>a.data<b.data?-1:1);
+  semanas.forEach(s=>{const idx=semaSort.findIndex(x=>x.data===s.data);const prev=semaSort[idx-1];const d=prev?s.itens-prev.itens:null;
     const dt=d==null?'<span class="muted">—</span>':`<span style="color:${d<0?'var(--green)':d>0?'var(--red)':'var(--text3)'}">${d>0?'+':''}${fmtINT(d)}</span>`;
     h+=`<tr><td class="strong">${fmtDATE(new Date(s.data))}</td><td class="num">${fmtINT(s.itens)}</td>
       <td class="num" style="color:${s.atrasados?'var(--red)':'var(--text3)'}">${fmtINT(s.atrasados)}</td>
@@ -2313,10 +2366,18 @@ function renderMeses(){
   }
   const q=(document.getElementById("mesBusca")?.value||"").trim().toLowerCase();
   const MESES_PT=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-  let ym=Object.entries(HIST.meses||{}).sort((a,b)=>b[0]<a[0]?1:-1).reverse();
+  if(!sortState.tblMeses) sortState.tblMeses={k:"ym",dir:-1};
+  const mst=sortState.tblMeses;
+  let ym=Object.entries(HIST.meses||{});
   if(q) ym=ym.filter(([k])=>k.toLowerCase().includes(q) || `${MESES_PT[+k.slice(5,7)-1]}/${k.slice(0,4)}`.includes(q));
-  let h=`<thead><tr><th>Ano/Mês</th><th class="num">Itens</th><th class="num">Atrasados</th>
-    <th class="money">Parado</th><th class="money">A entregar</th><th class="money">Retido</th><th>Atualizado em</th></tr></thead><tbody>`;
+  ym.sort(([ka,va],[kb,vb])=>{
+    const {k,dir}=mst;
+    if(k==="ym") return ka<kb?-dir:ka>kb?dir:0;
+    const nva=va[k]??0, nvb=vb[k]??0;
+    return (nva-nvb)*dir;
+  });
+  const thM=(k,l,c)=>thSort(k,l,c,mst,"doSortMeses");
+  let h=`<thead><tr>${thM("ym","Ano/Mês","")}${thM("itens","Itens","num")}${thM("atrasados","Atrasados","num")}${thM("vParado","Parado","money")}${thM("vEntregar","A entregar","money")}${thM("vRetido","Retido","money")}${thM("atualizadoEm","Atualizado em","")}</tr></thead><tbody>`;
   if(!ym.length) h+=`<tr><td colspan="7"><div class="empty"><i class="ti ti-calendar-search"></i>Nenhum mês encontrado.</div></td></tr>`;
   ym.forEach(([k,v])=>{
     const [a,m]=k.split("-");
@@ -2353,10 +2414,21 @@ function renderEntregues(){
   if(showT) COMP.entreguesTotal.forEach(r=>rows.push({...r,tipo:"total"}));
   if(showP) COMP.parciais.forEach(r=>rows.push({...r,tipo:"parc"}));
   if(q) rows=rows.filter(r=>(`${r.c} ${r.p} ${r.ped} ${r.f}`).toLowerCase().includes(q));
-  rows.sort((a,b)=>(b.entregue*(b.vu||0))-(a.entregue*(a.vu||0)));
-  let h=`<thead><tr><th>Tipo</th><th>Filial</th><th>Pedido</th><th>Cliente</th><th>Produto</th>
-    <th class="num">Entregue</th><th class="num">Saldo antes</th><th class="num">Saldo agora</th><th>Cobrança</th></tr></thead><tbody>`;
-  if(!rows.length) h+=`<tr><td colspan="9"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhuma entrega no período (para os filtros atuais).</div></td></tr>`;
+  if(!sortState.tblEntregues) sortState.tblEntregues={k:"valor",dir:-1};
+  const est=sortState.tblEntregues;
+  rows.sort((a,b)=>{
+    const {k,dir}=est;
+    if(k==="valor") return ((b.entregue*(b.vu||0))-(a.entregue*(a.vu||0)))*dir;
+    if(k==="entregue") return (a.entregue-b.entregue)*dir;
+    if(k==="de") return ((a.de||a.entregue)-(b.de||b.entregue))*dir;
+    if(k==="para") return ((a.para||0)-(b.para||0))*dir;
+    if(k==="tipo") return a.tipo.localeCompare(b.tipo)*dir;
+    const va=(a[k]||"").toString().toLowerCase(), vb=(b[k]||"").toString().toLowerCase();
+    return va<vb?-dir:va>vb?dir:0;
+  });
+  const thE=(k,l,c)=>thSort(k,l,c,est,"doSortEntregues");
+  let h=`<thead><tr>${thE("tipo","Tipo","")}${thE("f","Filial","")}${thE("ped","Pedido","")}${thE("c","Cliente","")}${thE("p","Produto","")}${thE("entregue","Entregue","num")}${thE("de","Saldo antes","num")}${thE("para","Saldo agora","num")}${thE("valor","Valor liberado","money")}<th>Cobrança</th></tr></thead><tbody>`;
+  if(!rows.length) h+=`<tr><td colspan="10"><div class="empty"><i class="ti ti-mood-empty"></i>Nenhuma entrega no período (para os filtros atuais).</div></td></tr>`;
   rows.forEach(r=>{const cb=r.cobr||{cobrado:false};h+=`<tr>
     <td>${r.tipo==="total"?'<span class="pill total">Entregue</span>':'<span class="pill parc">Parcial</span>'}</td>
     <td>${filialCell({sigla:r.f,filial:(BASE[r.f]||{}).loja||r.f})}</td>
@@ -2364,6 +2436,7 @@ function renderEntregues(){
     <td class="num" style="color:var(--green-dk);font-weight:700">${fmtINT(r.entregue)}</td>
     <td class="num muted">${fmtINT(r.tipo==="total"?r.entregue:r.de)}</td>
     <td class="num">${r.tipo==="total"?'<span style="color:var(--green)">0</span>':fmtINT(r.para)}</td>
+    <td class="money" style="color:var(--green-dk)">${fmtBRL(r.entregue*(r.vu||0))}</td>
     <td>${cb.cobrado
       ? `<span class="pill aguard" title="1ª cobrança em ${fmtDATE(new Date(cb.primeira))}">cobrado ${fmtINT(cb.vezes)}x · última ${fmtDATE(new Date(cb.ultima))}</span>`
       : `<span class="pill nao">nunca cobrado</span>`}</td></tr>`;});
