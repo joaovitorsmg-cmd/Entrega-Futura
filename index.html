@@ -388,9 +388,6 @@ tbody tr:last-child td{border-bottom:none}
     <div id="metaFile" class="muted"></div>
     <div id="metaPeriodo" class="muted" style="font-size:10px"></div>
   </div>
-  <button class="btn ghost" id="btnReload" style="display:none" onclick="resetApp()" title="Descartar o relatório atual e carregar um novo arquivo XLS">
-    <i class="ti ti-upload"></i> Novo relatório
-  </button>
   <button class="btn ghost theme-toggle" id="btnTheme" onclick="toggleTheme()" aria-label="Alternar tema">
     <i class="ti ti-moon" id="themeIcon"></i>
     <span class="theme-lbl">Tema</span>
@@ -597,6 +594,12 @@ tbody tr:last-child td{border-bottom:none}
         <p><b>Sincronização exclusiva via GitHub:</b> a cada importação, o painel grava o histórico completo (semanas, cobranças, meses) e a base atual diretamente na branch principal do repositório — sem serviços externos. Qualquer usuário que abrir o link verá a posição mais recente sem precisar importar o arquivo. A leitura é pública (sem token); a escrita exige um PAT fine-grained com <b>Contents: Read and write</b>.</p>
       </div>
 
+      <div id="cfgImportCard" class="card-box" style="margin-bottom:16px;display:none">
+        <h3 style="margin-top:0;color:var(--red-dk)"><i class="ti ti-upload"></i> Importar novo relatório</h3>
+        <p class="muted" style="margin:0 0 12px">Carrega um novo arquivo XLS e <b>descarta a posição atual</b> exibida no painel. Cobranças e histórico gravados no GitHub <b>não</b> são apagados.</p>
+        <button class="btn" style="background:var(--red-dk);color:#fff;border:none" onclick="resetApp()"><i class="ti ti-file-upload"></i> Carregar novo relatório</button>
+      </div>
+
       <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start">
         <div class="card-box">
           <h3 style="margin-top:0"><i class="ti ti-brand-github"></i> Configuração GitHub</h3>
@@ -777,6 +780,7 @@ function snapshotAgregado(recs){
   });
   return {
     data: dataRef.toISOString().slice(0,10),
+    importadoEm: new Date().toISOString().slice(0,10),
     itens: recs.length,
     atrasados: recs.filter(r=>r.atrasado).length,
     vEntregar: +recs.reduce((s,r)=>s+r.valorEntregar,0).toFixed(2),
@@ -1290,6 +1294,15 @@ async function persistirCobranca(){
     ? `<i class="ti ti-brand-github"></i> Registro de cobranças sincronizado no GitHub.`
     : `<i class="ti ti-cloud-x"></i> Não consegui gravar agora; tentará na próxima ação.`;
 }
+async function deletarImportacao(dataStr){
+  if(!confirm(`Excluir a importação de ${dataStr} do histórico?\n\nEsta ação não pode ser desfeita — a entrada será removida do GitHub.`)) return;
+  HIST.semanas=(HIST.semanas||[]).filter(s=>s.data!==dataStr);
+  if(HIST.ultimoDetalhe && HIST.ultimoDetalhe.data===dataStr) delete HIST.ultimoDetalhe;
+  const ok=await histSave();
+  if(ok) toast("Importação excluída e histórico atualizado no GitHub.");
+  else toast("Importação removida localmente, mas não consegui gravar no GitHub agora.");
+  renderEvolucao(ok);
+}
 // re-render de tudo que depende do status de cobrança
 function refreshAll(){
   renderResumo(); renderCobrar(); renderRetidos(); renderBase();
@@ -1403,7 +1416,7 @@ function resetApp(){
   document.getElementById("app").classList.remove("on");
   document.getElementById("intro").style.display="";
   document.getElementById("meta").style.display="none";
-  document.getElementById("btnReload").style.display="none";
+  const cfgImport=document.getElementById("cfgImportCard");if(cfgImport)cfgImport.style.display="none";
   try{ localStorage.removeItem(LOCAL_KEY); }catch(e){}
 }
 
@@ -1496,7 +1509,7 @@ function bootApp(isNewImport=true){
   document.getElementById("intro").style.display="none";
   document.getElementById("app").classList.add("on");
   document.getElementById("meta").style.display="";
-  document.getElementById("btnReload").style.display="";
+  const cfgImport=document.getElementById("cfgImportCard");if(cfgImport)cfgImport.style.display="";
   document.getElementById("metaData").textContent="Posição: "+fmtDATE(dataRef);
   const metaPeriodoEl=document.getElementById("metaPeriodo");
   if(metaPeriodoEl){
@@ -2335,20 +2348,23 @@ function renderEvolucao(saveOk,loading){
   const hst=sortState.tblHist;
   let semanas=(HIST.semanas||[]).slice();
   if(hst.k==="data") semanas.sort((a,b)=>a.data<b.data?hst.dir:-hst.dir);
+  else if(hst.k==="importadoEm") semanas.sort((a,b)=>(a.importadoEm||a.data)<(b.importadoEm||b.data)?hst.dir:-hst.dir);
   else if(hst.k==="itens") semanas.sort((a,b)=>(a.itens-b.itens)*hst.dir);
   else if(hst.k==="atrasados") semanas.sort((a,b)=>(a.atrasados-b.atrasados)*hst.dir);
   else if(hst.k==="vEntregar") semanas.sort((a,b)=>(a.vEntregar-b.vEntregar)*hst.dir);
   else if(hst.k==="vRetido") semanas.sort((a,b)=>(a.vRetido-b.vRetido)*hst.dir);
   const thH=(k,l,c)=>thSort(k,l,c,hst,"doSortHist");
-  let h=`<thead><tr>${thH("data","Data","")}${thH("itens","Itens","num")}${thH("atrasados","Atrasados","num")}${thH("vEntregar","A entregar","money")}${thH("vRetido","Retido","money")}<th class="num">Δ itens</th></tr></thead><tbody>`;
-  if(!semanas.length) h+=`<tr><td colspan="6"><div class="empty"><i class="ti ti-clock"></i>Nenhuma importação registrada ainda.</div></td></tr>`;
+  let h=`<thead><tr>${thH("data","Data arquivo","")}${thH("importadoEm","Importado em","")}${thH("itens","Itens","num")}${thH("atrasados","Atrasados","num")}${thH("vEntregar","A entregar","money")}${thH("vRetido","Retido","money")}<th class="num">Δ itens</th><th></th></tr></thead><tbody>`;
+  if(!semanas.length) h+=`<tr><td colspan="8"><div class="empty"><i class="ti ti-clock"></i>Nenhuma importação registrada ainda.</div></td></tr>`;
   const semaSort=(HIST.semanas||[]).slice().sort((a,b)=>a.data<b.data?-1:1);
   semanas.forEach(s=>{const idx=semaSort.findIndex(x=>x.data===s.data);const prev=semaSort[idx-1];const d=prev?s.itens-prev.itens:null;
     const dt=d==null?'<span class="muted">—</span>':`<span style="color:${d<0?'var(--green)':d>0?'var(--red)':'var(--text3)'}">${d>0?'+':''}${fmtINT(d)}</span>`;
-    h+=`<tr><td class="strong">${fmtDATE(new Date(s.data))}</td><td class="num">${fmtINT(s.itens)}</td>
+    const impEm=s.importadoEm?fmtDATE(new Date(s.importadoEm)):`<span class="muted">—</span>`;
+    h+=`<tr><td class="strong">${fmtDATE(new Date(s.data))}</td><td>${impEm}</td><td class="num">${fmtINT(s.itens)}</td>
       <td class="num" style="color:${s.atrasados?'var(--red)':'var(--text3)'}">${fmtINT(s.atrasados)}</td>
       <td class="money" style="color:var(--green-dk)">${fmtBRL(s.vEntregar)}</td>
-      <td class="money" style="color:var(--red-dk)">${fmtBRL(s.vRetido)}</td><td class="num">${dt}</td></tr>`;});
+      <td class="money" style="color:var(--red-dk)">${fmtBRL(s.vRetido)}</td><td class="num">${dt}</td>
+      <td><button class="btn ghost" style="padding:2px 6px;color:var(--red-dk)" onclick="deletarImportacao('${s.data}')" title="Excluir esta importação do histórico"><i class="ti ti-trash"></i></button></td></tr>`;});
   document.getElementById("tblHist").innerHTML=h+"</tbody>";
   renderEntregues();
   renderMeses();
