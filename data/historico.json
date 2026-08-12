@@ -347,21 +347,21 @@
       {
         "data": "2026-08-12",
         "importadoEm": "2026-08-12",
-        "itens": 5078,
+        "itens": 5084,
         "atrasados": 523,
-        "vEntregar": 23568161.43,
-        "vRetido": 53827478.18,
+        "vEntregar": 23535884.76,
+        "vRetido": 53707538.32,
         "porFilial": {
           "MTZ": {
-            "n": 139,
-            "ent": 1169654.6400000001,
+            "n": 140,
+            "ent": 1188054.6400000001,
             "ret": 1770526.23,
             "atr": 17
           },
           "ARG": {
-            "n": 537,
-            "ent": 2963128.7900000005,
-            "ret": 5742162.25,
+            "n": 540,
+            "ent": 2964248.7900000005,
+            "ret": 5744462.25,
             "atr": 94
           },
           "RVD": {
@@ -377,14 +377,14 @@
             "atr": 23
           },
           "MAR": {
-            "n": 135,
-            "ent": 1176251.9899999998,
+            "n": 134,
+            "ent": 1133051.99,
             "ret": 1191896.18,
             "atr": 20
           },
           "JAT": {
-            "n": 195,
-            "ent": 1350758.78,
+            "n": 203,
+            "ent": 1371150.5600000003,
             "ret": 1225820.4899999998,
             "atr": 21
           },
@@ -395,15 +395,15 @@
             "atr": 12
           },
           "RED": {
-            "n": 149,
-            "ent": 505214.31000000006,
+            "n": 146,
+            "ent": 494282.51,
             "ret": 1854458.6100000003,
             "atr": 14
           },
           "IMP": {
-            "n": 229,
-            "ent": 1211187.9899999998,
-            "ret": 1569349.45,
+            "n": 217,
+            "ent": 1207633.2899999998,
+            "ret": 1441444.3900000001,
             "atr": 6
           },
           "BAR": {
@@ -413,14 +413,14 @@
             "atr": 42
           },
           "PAL": {
-            "n": 130,
-            "ent": 568179.94,
-            "ret": 553158.0299999999,
+            "n": 135,
+            "ent": 570262.4899999999,
+            "ret": 552326.0299999999,
             "atr": 18
           },
           "MOZ": {
-            "n": 245,
-            "ent": 1354147.96,
+            "n": 244,
+            "ent": 1345288.9600000002,
             "ret": 1916195.89,
             "atr": 9
           },
@@ -431,9 +431,9 @@
             "atr": 0
           },
           "SFX": {
-            "n": 245,
+            "n": 246,
             "ent": 768859.4299999999,
-            "ret": 4750509.8100000005,
+            "ret": 4750699.8100000005,
             "atr": 17
           },
           "FCB": {
@@ -467,9 +467,9 @@
             "atr": 8
           },
           "JUS": {
-            "n": 199,
-            "ent": 845024.74,
-            "ret": 1123949.86,
+            "n": 206,
+            "ent": 849189.2400000001,
+            "ret": 1130257.06,
             "atr": 16
           },
           "XRA": {
@@ -497,20 +497,20 @@
             "atr": 12
           },
           "GUR": {
-            "n": 63,
-            "ent": 207600.90000000002,
+            "n": 62,
+            "ent": 204780.90000000002,
             "ret": 113800.06000000003,
             "atr": 2
           },
           "RIA": {
-            "n": 311,
-            "ent": 1478575.1400000004,
+            "n": 309,
+            "ent": 1468975.1400000004,
             "ret": 1120315.2500000002,
             "atr": 26
           },
           "ALT": {
-            "n": 69,
-            "ent": 197708.26,
+            "n": 70,
+            "ent": 198238.26,
             "ret": 1008648.0699999998,
             "atr": 2
           }
@@ -719,6 +719,14 @@
           "f": "MTZ",
           "ped": "2800182",
           "vu": 146.81
+        },
+        "2800240||13491": {
+          "s": 20,
+          "c": "ALTINO VIEIRA REZENDE FILHO",
+          "p": "DOMINUM XT-S / 10 LT",
+          "f": "MTZ",
+          "ped": "2800240",
+          "vu": 920
         },
         "2801524||13491": {
           "s": 4,
@@ -3760,6 +3768,22 @@
           "ped": "2803428",
           "vu": 149
         },
+        "2803559||3877": {
+          "s": 1,
+          "c": "JAIMI JONI DANZER",
+          "p": "SEM.AGR.B.HUMIDICOLA CV LLANERO VC 48",
+          "f": "ARG",
+          "ped": "2803559",
+          "vu": 1200
+        },
+        "2803559||5701": {
+          "s": 2,
+          "c": "JAIMI JONI DANZER",
+          "p": "SEM.AGR.P.MAXIMUM CV MASSAI VC 34 TRAT",
+          "f": "ARG",
+          "ped": "2803559",
+          "vu": 550
+        },
         "3367762||13150": {
           "s": 12,
           "c": "NASSER IUNES",
@@ -5927,6 +5951,14 @@
           "f": "ARG",
           "ped": "3403575",
           "vu": 169
+        },
+        "3403717||15227": {
+          "s": 8,
+          "c": "ANTONIO LISBOA TEXEIRA NETO",
+          "p": "FOSQUIMA 700",
+          "f": "ARG",
+          "ped": "3403717",
+          "vu": 140
         },
         "2748602||8909": {
           "s": 4,
@@ -10000,14 +10032,6 @@
           "ped": "2801802",
           "vu": 49
         },
-        "2803582||6184": {
-          "s": 250,
-          "c": "JOSEANA DA SILVA CARVALHO",
-          "p": "FOSQUIMA TOTAL / 30 KG",
-          "f": "MAR",
-          "ped": "2803582",
-          "vu": 160
-        },
         "3365938||6184": {
           "s": 100,
           "c": "FLAVIO ALEXANDRE DE SOUSA",
@@ -10193,7 +10217,7 @@
           "vu": 168
         },
         "3392887||6184": {
-          "s": 170,
+          "s": 150,
           "c": "ADJACI SILVA RAFAEL",
           "p": "FOSQUIMA TOTAL / 30 KG",
           "f": "MAR",
@@ -11097,7 +11121,7 @@
           "vu": 228
         },
         "2786290||7568": {
-          "s": 100,
+          "s": 75,
           "c": "ELZI GARCIA LIMA VICHE",
           "p": "FOSQUIMA SM / 30 KG",
           "f": "JAT",
@@ -12248,6 +12272,14 @@
           "ped": "3399770",
           "vu": 2000
         },
+        "3399795||13219": {
+          "s": 2,
+          "c": "FRANCISCO DE PAULA ASSIS RIBEIRO",
+          "p": "TORDON ULTRA-S / 50 LT",
+          "f": "JAT",
+          "ped": "3399795",
+          "vu": 2000
+        },
         "3399824||9232": {
           "s": 2,
           "c": "PAULO PEREIRA DA CRUZ",
@@ -12375,6 +12407,14 @@
           "f": "JAT",
           "ped": "3400435",
           "vu": 382.5
+        },
+        "3400587||13219": {
+          "s": 1,
+          "c": "ADRIANO JOAQUIM DA SILVA",
+          "p": "TORDON ULTRA-S / 50 LT",
+          "f": "JAT",
+          "ped": "3400587",
+          "vu": 2000
         },
         "3401575||13219": {
           "s": 10,
@@ -12511,6 +12551,54 @@
           "f": "JAT",
           "ped": "3403044",
           "vu": 96.2
+        },
+        "3403516||14971": {
+          "s": 12,
+          "c": "SAVIO CARVALHO DE MELO",
+          "p": "SONDA HT - 20 LTS",
+          "f": "JAT",
+          "ped": "3403516",
+          "vu": 703.26
+        },
+        "3403516||14594": {
+          "s": 10,
+          "c": "SAVIO CARVALHO DE MELO",
+          "p": "AMINOSAN - BB 10 LT",
+          "f": "JAT",
+          "ped": "3403516",
+          "vu": 367.21
+        },
+        "3403516||9270": {
+          "s": 10,
+          "c": "SAVIO CARVALHO DE MELO",
+          "p": "REDUTAN NPK SILI 4-3-17 / 1 LITRO",
+          "f": "JAT",
+          "ped": "3403516",
+          "vu": 89.01
+        },
+        "3403516||11004": {
+          "s": 20,
+          "c": "SAVIO CARVALHO DE MELO",
+          "p": "PROTAC / 500 GR",
+          "f": "JAT",
+          "ped": "3403516",
+          "vu": 48.83
+        },
+        "3403516||14523": {
+          "s": 2,
+          "c": "SAVIO CARVALHO DE MELO",
+          "p": "PGFIX / 20 L",
+          "f": "JAT",
+          "ped": "3403516",
+          "vu": 368.24
+        },
+        "3403516||15196": {
+          "s": 2,
+          "c": "SAVIO CARVALHO DE MELO",
+          "p": "MESOTRIONE 480 SC PROVENTIS 20 LT",
+          "f": "JAT",
+          "ped": "3403516",
+          "vu": 1513.69
         },
         "3403749||7568": {
           "s": 80,
@@ -13353,7 +13441,7 @@
           "vu": 134
         },
         "2779202|1|14168": {
-          "s": 15,
+          "s": 9,
           "c": "RONALDO DE MATOS MEDRADO",
           "p": "FOSQUIMA CONCENTRADO 450 CB / 30KG",
           "f": "RED",
@@ -13792,22 +13880,6 @@
           "ped": "2800104",
           "vu": 205
         },
-        "2801054|1|6626": {
-          "s": 15,
-          "c": "JARDEL GOMES DOS SANTOS",
-          "p": "BOVITAC CB / 30 KG",
-          "f": "RED",
-          "ped": "2801054",
-          "vu": 105
-        },
-        "2801054|1|14134": {
-          "s": 5,
-          "c": "JARDEL GOMES DOS SANTOS",
-          "p": "FOSQUIMA CONCENTRADO 450 / 30 KG",
-          "f": "RED",
-          "ped": "2801054",
-          "vu": 111
-        },
         "2801185||3958": {
           "s": 5,
           "c": "AURELIO BARROS DA SILVA",
@@ -13959,14 +14031,6 @@
           "f": "RED",
           "ped": "3391665",
           "vu": 355
-        },
-        "3391902||14168": {
-          "s": 3,
-          "c": "JURACY HIGIDIO DE SOUSA",
-          "p": "FOSQUIMA CONCENTRADO 450 CB / 30KG",
-          "f": "RED",
-          "ped": "3391902",
-          "vu": 102.6
         },
         "3392131|3|6184": {
           "s": 20,
@@ -14457,7 +14521,7 @@
           "vu": 150
         },
         "3402030||14134": {
-          "s": 239,
+          "s": 160,
           "c": "JURACY HIGIDIO DE SOUSA",
           "p": "FOSQUIMA CONCENTRADO 450 / 30 KG",
           "f": "RED",
@@ -14880,14 +14944,6 @@
           "ped": "2798601",
           "vu": 886.59
         },
-        "2802678||13924": {
-          "s": 20,
-          "c": "ARAINA CESAREA FERREIRA DOS",
-          "p": "FOSQUIMA PRO CB / 30 KG",
-          "f": "IMP",
-          "ped": "2802678",
-          "vu": 122
-        },
         "2803293||15339": {
           "s": 1,
           "c": "ERISVALDO PEREIRA COSTA",
@@ -14895,22 +14951,6 @@
           "f": "IMP",
           "ped": "2803293",
           "vu": 790
-        },
-        "2803415||9780": {
-          "s": 24,
-          "c": "E T DA SILVA EIRELI",
-          "p": "ACURA MAX / 25 ML",
-          "f": "IMP",
-          "ped": "2803415",
-          "vu": 50.98
-        },
-        "2803415||105": {
-          "s": 3,
-          "c": "E T DA SILVA EIRELI",
-          "p": "PULV. PJH / 20 LTS",
-          "f": "IMP",
-          "ped": "2803415",
-          "vu": 386
         },
         "3368365||14171": {
           "s": 85,
@@ -15752,14 +15792,6 @@
           "ped": "3400770",
           "vu": 94.69
         },
-        "3400783||14828": {
-          "s": 200,
-          "c": "FRANCISCO PEREIRA DE FIGUEREDO",
-          "p": "FOSQUIMA CONCENTRADO DDG",
-          "f": "IMP",
-          "ped": "3400783",
-          "vu": 110
-        },
         "3401210||14971": {
           "s": 12,
           "c": "RAIMUNDO JOSE OLIVEIRA",
@@ -15881,20 +15913,12 @@
           "vu": 123
         },
         "3401506||11535": {
-          "s": 50,
+          "s": 6,
           "c": "MARCELO ALMEIDA CAVALCANTE",
           "p": "FOSQUIMA GRAO INTEIRO / 30 KG",
           "f": "IMP",
           "ped": "3401506",
           "vu": 160
-        },
-        "3401536||6184": {
-          "s": 50,
-          "c": "ELY MAGDIEL SALUSTINO DOS",
-          "p": "FOSQUIMA TOTAL / 30 KG",
-          "f": "IMP",
-          "ped": "3401536",
-          "vu": 197
         },
         "3402096||14873": {
           "s": 2,
@@ -15903,14 +15927,6 @@
           "f": "IMP",
           "ped": "3402096",
           "vu": 370
-        },
-        "3402119||13914": {
-          "s": 10,
-          "c": "MARCELO DA SILVA SOARES",
-          "p": "FOSQUIMA PRO / 30 KG",
-          "f": "IMP",
-          "ped": "3402119",
-          "vu": 111.47
         },
         "3402171||14619": {
           "s": 80,
@@ -15977,7 +15993,7 @@
           "vu": 538
         },
         "3402360||2211": {
-          "s": 100,
+          "s": 50,
           "c": "EDUARDO COSTA MATIAS DA PAZ",
           "p": "BOVITAC PELETIZADO SC 30 KG",
           "f": "IMP",
@@ -16079,22 +16095,6 @@
           "f": "IMP",
           "ped": "3402383",
           "vu": 535
-        },
-        "3402436||2211": {
-          "s": 10,
-          "c": "JOSE LENILDO VENTURA DE ANDRADE",
-          "p": "BOVITAC PELETIZADO SC 30 KG",
-          "f": "IMP",
-          "ped": "3402436",
-          "vu": 124
-        },
-        "3402461||105": {
-          "s": 40,
-          "c": "PEDRO DOS REIS LUZ",
-          "p": "PULV. PJH / 20 LTS",
-          "f": "IMP",
-          "ped": "3402461",
-          "vu": 380.74
         },
         "3402555||9270": {
           "s": 12,
@@ -16248,14 +16248,6 @@
           "ped": "3402612",
           "vu": 360
         },
-        "3402971||6184": {
-          "s": 50,
-          "c": "GLAUCO RODRIGUES MIRANDA",
-          "p": "FOSQUIMA TOTAL / 30 KG",
-          "f": "IMP",
-          "ped": "3402971",
-          "vu": 197.4
-        },
         "3402971||12490": {
           "s": 50,
           "c": "GLAUCO RODRIGUES MIRANDA",
@@ -16264,29 +16256,13 @@
           "ped": "3402971",
           "vu": 174.9
         },
-        "3403013||6184": {
-          "s": 100,
-          "c": "FRANCISCO DOS SANTOS RAMOS",
-          "p": "FOSQUIMA TOTAL / 30 KG",
-          "f": "IMP",
-          "ped": "3403013",
-          "vu": 190
-        },
         "3403155||4015": {
-          "s": 130,
+          "s": 52,
           "c": "NELIO SOUSA DA COSTA",
           "p": "FOSQUIMA MAX GANHO S CB / 30 KG",
           "f": "IMP",
           "ped": "3403155",
           "vu": 120
-        },
-        "3403155||13924": {
-          "s": 50,
-          "c": "NELIO SOUSA DA COSTA",
-          "p": "FOSQUIMA PRO CB / 30 KG",
-          "f": "IMP",
-          "ped": "3403155",
-          "vu": 125
         },
         "3403454||14876": {
           "s": 15,
@@ -16303,14 +16279,6 @@
           "f": "IMP",
           "ped": "3403455",
           "vu": 100
-        },
-        "3403711||6184": {
-          "s": 102,
-          "c": "JOAQUIM BITU BEZERRA",
-          "p": "FOSQUIMA TOTAL / 30 KG",
-          "f": "IMP",
-          "ped": "3403711",
-          "vu": 189.97
         },
         "2754806||15107": {
           "s": 53,
@@ -18456,14 +18424,6 @@
           "ped": "2802466",
           "vu": 275.72
         },
-        "2802623||14134": {
-          "s": 8,
-          "c": "CAIO RENAN SALBE LOPES",
-          "p": "FOSQUIMA CONCENTRADO 450 / 30 KG",
-          "f": "PAL",
-          "ped": "2802623",
-          "vu": 104
-        },
         "2802820||2211": {
           "s": 20,
           "c": "MARCELO DA SILVA MARTINS",
@@ -18663,6 +18623,54 @@
           "f": "PAL",
           "ped": "3399752",
           "vu": 1038.19
+        },
+        "3400236||14865": {
+          "s": 1,
+          "c": "HELIO SOARES CORREIA",
+          "p": "TORBAN RAINBOW / 1 LT",
+          "f": "PAL",
+          "ped": "3400236",
+          "vu": 46.27
+        },
+        "3400236||14866": {
+          "s": 1,
+          "c": "HELIO SOARES CORREIA",
+          "p": "TORBAN RAINBOW / 5 LT",
+          "f": "PAL",
+          "ped": "3400236",
+          "vu": 215.1
+        },
+        "3400236||14872": {
+          "s": 1,
+          "c": "HELIO SOARES CORREIA",
+          "p": "WIDCLEAR RAINBOW / 5 LT",
+          "f": "PAL",
+          "ped": "3400236",
+          "vu": 320.18
+        },
+        "3400236||14869": {
+          "s": 1,
+          "c": "HELIO SOARES CORREIA",
+          "p": "TRICLOMAX RAINBOW / 5 LT",
+          "f": "PAL",
+          "ped": "3400236",
+          "vu": 382.17
+        },
+        "3400236||15107": {
+          "s": 3,
+          "c": "HELIO SOARES CORREIA",
+          "p": "MILHA METSULFURON / 200 GR",
+          "f": "PAL",
+          "ped": "3400236",
+          "vu": 68.39
+        },
+        "3400236||15223": {
+          "s": 1,
+          "c": "HELIO SOARES CORREIA",
+          "p": "MATTOR / 20 LT",
+          "f": "PAL",
+          "ped": "3400236",
+          "vu": 913.66
         },
         "3400302||14872": {
           "s": 1,
@@ -19439,14 +19447,6 @@
           "f": "MOZ",
           "ped": "3391640",
           "vu": 1100
-        },
-        "3393037||4034": {
-          "s": 75,
-          "c": "THIAGO PEREIRA VAZ",
-          "p": "FOSQUIMA SM M / 30 KG",
-          "f": "MOZ",
-          "ped": "3393037",
-          "vu": 118.12
         },
         "3393130||9280": {
           "s": 6,
@@ -21585,7 +21585,7 @@
           "vu": 185
         },
         "2799010||6184": {
-          "s": 50,
+          "s": 10,
           "c": "ALEXANDRE SANTOS MORAIS",
           "p": "FOSQUIMA TOTAL / 30 KG",
           "f": "SFX",
@@ -22999,6 +22999,14 @@
           "f": "SFX",
           "ped": "3402880",
           "vu": 790
+        },
+        "3403497||169": {
+          "s": 25,
+          "c": "ELIAS ROSA DA SILVA",
+          "p": "FOSQUIMA 160 / 25 KG",
+          "f": "SFX",
+          "ped": "3403497",
+          "vu": 298
         },
         "2802018||6626": {
           "s": 40,
@@ -32728,6 +32736,62 @@
           "ped": "3403525",
           "vu": 73.55
         },
+        "3403562||2211": {
+          "s": 55,
+          "c": "ANA ROSA CAETANO DA SILVA",
+          "p": "BOVITAC PELETIZADO SC 30 KG",
+          "f": "JUS",
+          "ped": "3403562",
+          "vu": 91.2
+        },
+        "3403562||6184": {
+          "s": 7,
+          "c": "ANA ROSA CAETANO DA SILVA",
+          "p": "FOSQUIMA TOTAL / 30 KG",
+          "f": "JUS",
+          "ped": "3403562",
+          "vu": 162
+        },
+        "3403562||12493": {
+          "s": 2,
+          "c": "ANA ROSA CAETANO DA SILVA",
+          "p": "FOSQUIMA TROPA / 30 KG",
+          "f": "JUS",
+          "ped": "3403562",
+          "vu": 78.6
+        },
+        "3403815||7568": {
+          "s": 9,
+          "c": "DANILLO HUMBERTO FERREIRA SILVA",
+          "p": "FOSQUIMA SM / 30 KG",
+          "f": "JUS",
+          "ped": "3403815",
+          "vu": 147.24
+        },
+        "3403815||4034": {
+          "s": 10,
+          "c": "DANILLO HUMBERTO FERREIRA SILVA",
+          "p": "FOSQUIMA SM M / 30 KG",
+          "f": "JUS",
+          "ped": "3403815",
+          "vu": 149.84
+        },
+        "3403815||12493": {
+          "s": 2,
+          "c": "DANILLO HUMBERTO FERREIRA SILVA",
+          "p": "FOSQUIMA TROPA / 30 KG",
+          "f": "JUS",
+          "ped": "3403815",
+          "vu": 75.57
+        },
+        "3403815||15227": {
+          "s": 10,
+          "c": "DANILLO HUMBERTO FERREIRA SILVA",
+          "p": "FOSQUIMA 700",
+          "f": "JUS",
+          "ped": "3403815",
+          "vu": 118.98
+        },
         "2752140||15072": {
           "s": 2,
           "c": "FABIO COUTINHO ASSUNCAO",
@@ -37800,14 +37864,6 @@
           "ped": "2801781",
           "vu": 765
         },
-        "2802222||13914": {
-          "s": 30,
-          "c": "RAIMUNDO ARAUJO CARVALHO",
-          "p": "FOSQUIMA PRO / 30 KG",
-          "f": "GUR",
-          "ped": "2802222",
-          "vu": 94
-        },
         "2802920||4034": {
           "s": 50,
           "c": "MAURICIO NAUAR CHAVES",
@@ -39329,20 +39385,12 @@
           "vu": 1000
         },
         "3397688||9504": {
-          "s": 35,
+          "s": 25,
           "c": "JOSE ASSIS DA COSTA JUNIOR",
           "p": "FOSQUIMA ENGORD CONCENTRADO / 30 KG",
           "f": "RIA",
           "ped": "3397688",
           "vu": 135
-        },
-        "3397688||12490": {
-          "s": 10,
-          "c": "JOSE ASSIS DA COSTA JUNIOR",
-          "p": "VANTAGE 900 / 30 KG",
-          "f": "RIA",
-          "ped": "3397688",
-          "vu": 125
         },
         "3397754||14873": {
           "s": 10,
@@ -40416,14 +40464,6 @@
           "ped": "3402228",
           "vu": 128.9
         },
-        "3402277||13491": {
-          "s": 7,
-          "c": "WALDECY FERREIRA",
-          "p": "DOMINUM XT-S / 10 LT",
-          "f": "RIA",
-          "ped": "3402277",
-          "vu": 1000
-        },
         "3402278||14877": {
           "s": 3,
           "c": "CLEBER DIAS ALMEIDA",
@@ -40832,6 +40872,14 @@
           "ped": "2803132",
           "vu": 545.77
         },
+        "2803587||14606": {
+          "s": 1,
+          "c": "GILSON BATISTA DA SILVA",
+          "p": "FLUMIOXAZIN NORTOX / 5 LT",
+          "f": "ALT",
+          "ped": "2803587",
+          "vu": 530
+        },
         "3381382||3964": {
           "s": 50,
           "c": "NIVALDO ARANHA DA SILVA",
@@ -41182,8 +41230,8 @@
       "2026-03": {
         "itens": 288,
         "atrasados": 201,
-        "vParado": 5963011.8,
-        "vEntregar": 2630164.5,
+        "vParado": 5962417.8,
+        "vEntregar": 2629570.5,
         "vRetido": 3332847.3,
         "atualizadoEm": "2026-08-12"
       },
@@ -41196,18 +41244,18 @@
         "atualizadoEm": "2026-08-12"
       },
       "2026-05": {
-        "itens": 1175,
+        "itens": 1173,
         "atrasados": 44,
-        "vParado": 19193276.04,
-        "vEntregar": 5490643.95,
+        "vParado": 19177559.24,
+        "vEntregar": 5474927.15,
         "vRetido": 13702632.09,
         "atualizadoEm": "2026-08-12"
       },
       "2026-06": {
-        "itens": 1241,
+        "itens": 1240,
         "atrasados": 0,
-        "vParado": 17398958.36,
-        "vEntregar": 4633169.83,
+        "vParado": 17396358.36,
+        "vEntregar": 4630569.83,
         "vRetido": 12765788.53,
         "atualizadoEm": "2026-08-12"
       },
@@ -41292,19 +41340,19 @@
         "atualizadoEm": "2026-06-23"
       },
       "2026-07": {
-        "itens": 1552,
+        "itens": 1546,
         "atrasados": 0,
-        "vParado": 22829855.52,
-        "vEntregar": 5425737,
-        "vRetido": 17404118.52,
+        "vParado": 22744914.22,
+        "vEntregar": 5409722.3,
+        "vRetido": 17335191.92,
         "atualizadoEm": "2026-08-12"
       },
       "2026-08": {
-        "itens": 325,
+        "itens": 340,
         "atrasados": 0,
-        "vParado": 3431096.15,
-        "vEntregar": 1270879.69,
-        "vRetido": 2160216.46,
+        "vParado": 3382731.72,
+        "vEntregar": 1273528.52,
+        "vRetido": 2109203.2,
         "atualizadoEm": "2026-08-12"
       }
     },
