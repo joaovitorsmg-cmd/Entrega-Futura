@@ -194,6 +194,9 @@ button{font-family:inherit;cursor:pointer}
 .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .chip:hover:not(.on){border-color:var(--brand);color:var(--text)}
 .chip i{font-size:14px}
+.chip.chip-acao{border-color:var(--green);color:var(--green-dk)}
+.chip.chip-acao.on{background:var(--green);border-color:var(--green);color:#fff}
+.chip.chip-acao:hover:not(.on){border-color:var(--green-dk);background:var(--green-lt)}
 .btn-clear{padding:8px 13px;border-radius:var(--r-sm);font-size:12.5px;font-weight:600;border:1px solid var(--border-2);
   background:var(--bg);color:var(--gray);display:inline-flex;align-items:center;gap:6px;transition:.15s}
 .btn-clear:hover{background:var(--red-lt);border-color:var(--red);color:var(--red)}
@@ -1703,6 +1706,14 @@ function buildFilters(){
     wireFilter(id);
   }
   bar("fbCobrar"); bar("fbRetidos"); bar("fbBase");
+  // Chip exclusivo de Cobrar agora: mostra apenas itens ainda não cobrados
+  const _fbC = document.getElementById("fbCobrar");
+  const _chipNao = document.createElement("button");
+  _chipNao.className = "chip chip-acao";
+  _chipNao.setAttribute("data-f", "sonao");
+  _chipNao.innerHTML = '<i class="ti ti-circle-check"></i> Só pendentes';
+  _fbC.insertBefore(_chipNao, _fbC.querySelector(".spacer"));
+  _chipNao.onclick = () => { _chipNao.classList.toggle("on"); rerender(); };
   // ativa "Só atrasados" por padrão na aba Cobrar agora
   const soAtrChip = document.querySelector("#fbCobrar .chip[data-f='soatr']");
   if(soAtrChip) soAtrChip.classList.add("on");
@@ -1757,6 +1768,7 @@ function applyFilter(rows,f){
     if(f.mes && (!r.emissao || r.emissao.toISOString().slice(0,7)!==f.mes)) return false;
     if(f.soatr && !r.atrasado) return false;
     if(f.soprio && !isPriorityLine(r.linha)) return false;
+    if(f.sonao && r.audit && r.audit.st !== "nao") return false;
     if(f.busca){const q=f.busca.toLowerCase();
       if(!(`${r.cliente} ${r.produto} ${r.pedido} ${r.cidade} ${r.vendedor} ${r.codProd}`).toLowerCase().includes(q)) return false;}
     return true;
@@ -2600,7 +2612,10 @@ function desfazerUltimaCobranca(){
 }
 function downloadExcelCobranca(){
   if(!MAIL_ITENS.length){ toast("Nenhum item para exportar."); return; }
-  const data=MAIL_ITENS.map(r=>({
+  const itens=MAIL_ITENS.filter(r=>!r.audit||r.audit.st==="nao");
+  if(!itens.length){ toast("Todos os itens desta seleção já foram marcados como cobrados."); return; }
+  const excl=MAIL_ITENS.length-itens.length;
+  const data=itens.map(r=>({
     "Pedido": r.pedido,
     "Cliente": r.cliente,
     "Produto": r.produto,
@@ -2614,6 +2629,7 @@ function downloadExcelCobranca(){
   XLSX.utils.book_append_sheet(wb, ws, "Cobranca");
   const nome=`cobranca_${mailSigla}${MAIL_CLIENTE?"_"+MAIL_CLIENTE.replace(/[^a-zA-Z0-9]+/g,"_"):""}_${new Date().toISOString().slice(0,10)}.xlsx`;
   XLSX.writeFile(wb, nome);
+  if(excl>0) toast(`Excel com ${itens.length} item${itens.length!==1?"s":""} ainda não cobrado${itens.length!==1?"s":""} (${excl} já cobrado${excl!==1?"s":""} excluído${excl!==1?"s":""}).`);
 }
 function openMail(){
   const b=BASE[mailSigla]||{};
