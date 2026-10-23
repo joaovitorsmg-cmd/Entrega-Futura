@@ -493,8 +493,8 @@ tbody tr:last-child td{border-bottom:none}
         <p>O que já foi cobrado e o que não foi. Evita cobrar duas vezes o mesmo item e expõe quem foi cobrado e ignorou.</p></div>
       <div id="cobrStatus" class="note" style="margin-bottom:14px"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <button class="btn primary" id="btnFinalizarCobr" onclick="persistirCobranca()" title="Salvar as cobranças registradas no GitHub e sincronizar com todos os dispositivos">
-          <i class="ti ti-brand-github"></i> Finalizar cobranças (sincronizar com o GitHub)
+        <button class="btn primary" id="btnFinalizarCobr" onclick="persistirCobranca()" title="Salvar as cobranças registradas no Supabase e sincronizar com todos os dispositivos">
+          <i class="ti ti-database"></i> Finalizar cobranças (sincronizar com o Supabase)
         </button>
         <button class="btn danger" onclick="zerarCobranças()" title="Apagar todo o histórico de cobranças desta sessão — irreversível">
           <i class="ti ti-trash"></i> Zerar cobranças
@@ -591,10 +591,10 @@ tbody tr:last-child td{border-bottom:none}
     <!-- CONFIGURAÇÃO -->
     <div class="page" id="pg-config">
       <div class="page-head"><h2><i class="ti ti-settings"></i> Configuração</h2>
-        <p>Sincronização exclusiva via GitHub. Histórico, cobranças e base atual gravados direto no repositório — sem dependências externas.</p></div>
+        <p>Sincronização via Supabase. Histórico, cobranças e base atual gravados no banco — acessíveis em qualquer dispositivo sem token GitHub.</p></div>
 
       <div class="insight" id="cfgInfo">
-        <p><b>Sincronização exclusiva via GitHub:</b> a cada importação, o painel grava o histórico completo (semanas, cobranças, meses) e a base atual diretamente na branch principal do repositório — sem serviços externos. Qualquer usuário que abrir o link verá a posição mais recente sem precisar importar o arquivo. A leitura é pública (sem token); a escrita exige um PAT fine-grained com <b>Contents: Read and write</b>.</p>
+        <p><b>Sincronização via Supabase:</b> a cada importação, o painel grava o histórico completo e a base atual no Supabase. Qualquer usuário que abrir o link vê a posição mais recente sem precisar importar o arquivo. A leitura é pública (anon key); a escrita exige a <b>senha de sync</b> que você definiu no banco.</p>
       </div>
 
       <div id="cfgImportCard" class="card-box" style="margin-bottom:16px;display:none">
@@ -605,20 +605,24 @@ tbody tr:last-child td{border-bottom:none}
 
       <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start">
         <div class="card-box">
-          <h3 style="margin-top:0"><i class="ti ti-brand-github"></i> Configuração GitHub</h3>
+          <h3 style="margin-top:0"><i class="ti ti-database"></i> Configuração Supabase</h3>
 
-          <label>Token do GitHub (fine-grained PAT)</label>
+          <label>URL do projeto</label>
+          <input type="text" id="cfgSbUrl" placeholder="https://xxxx.supabase.co" style="width:100%;margin-bottom:10px">
+
+          <label>Anon key (pública)</label>
+          <input type="text" id="cfgSbKey" placeholder="eyJhbGciOi…" style="width:100%;margin-bottom:10px;font-size:11.5px">
+          <p class="muted" style="margin:0 0 12px">Encontre em <b>Supabase → Project Settings → API</b>. A anon key é pública — pode ficar no navegador.</p>
+
+          <label>Senha de sync (protege a escrita)</label>
           <div style="display:flex;gap:8px">
-            <input type="password" id="cfgGhToken" style="flex:1" placeholder="github_pat_…">
-            <button class="btn ghost" id="cfgToggleTok" title="Mostrar / ocultar token"><i class="ti ti-eye"></i></button>
+            <input type="password" id="cfgSbPass" style="flex:1" placeholder="senha definida no banco…">
+            <button class="btn ghost" id="cfgTogglePass" title="Mostrar / ocultar senha"><i class="ti ti-eye"></i></button>
           </div>
-          <p class="muted" style="margin:4px 0 12px">Gere em <b>GitHub → Settings → Developer settings → Fine-grained tokens</b>. Restrinja ao repositório abaixo e marque <b>Contents: Read and write</b>. O token fica só neste navegador, nunca é publicado.</p>
-
-          <label>Repositório (owner/repo)</label>
-          <input type="text" id="cfgGhRepo" placeholder="joaovitorsmg-cmd/Entrega-Futura" style="width:100%;margin-bottom:14px">
+          <p class="muted" style="margin:4px 0 14px">Definida via SQL no setup do Supabase. Fica só neste navegador.</p>
 
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn ghost" id="cfgTestGithub"><i class="ti ti-plug-connected"></i> Testar conexão</button>
+            <button class="btn ghost" id="cfgTestSupabase"><i class="ti ti-plug-connected"></i> Testar conexão</button>
             <button class="btn primary" id="cfgSave"><i class="ti ti-device-floppy"></i> Salvar</button>
           </div>
           <div id="cfgTestResult" class="note" style="margin-top:12px;display:none"></div>
@@ -629,10 +633,10 @@ tbody tr:last-child td{border-bottom:none}
           <div id="cfgStatusBox"></div>
           <p class="muted" style="margin-top:14px">Indicadores do selo no topo:</p>
           <ul class="muted" style="padding-left:18px;line-height:1.7">
-            <li><b style="color:var(--green-dk)">GitHub · sincronizado</b> — histórico e cobranças gravados no repositório.</li>
-            <li><b style="color:var(--text2)">GitHub · sem histórico</b> — repositório acessível, nenhuma importação registrada ainda.</li>
-            <li><b style="color:var(--red-dk)">Erro de sync</b> — falha ao gravar. Verifique token e permissões.</li>
-            <li><b class="muted">Sem config</b> — token ou repositório não configurados.</li>
+            <li><b style="color:var(--green-dk)">Supabase · sincronizado</b> — histórico e cobranças gravados no banco.</li>
+            <li><b style="color:var(--text2)">Supabase · sem histórico</b> — banco acessível, nenhuma importação registrada ainda.</li>
+            <li><b style="color:var(--red-dk)">Erro de sync</b> — falha ao gravar. Verifique a senha e as configurações.</li>
+            <li><b class="muted">Sem config</b> — URL ou anon key não configuradas.</li>
           </ul>
         </div>
       </div>
@@ -737,11 +741,12 @@ initTheme();
 let RECORDS = [];
 let dataRef = new Date();
 
-/* ---------- CONFIGURAÇÃO (GitHub) — editável na tela "Configuração", guardada no localStorage ---------- */
-const CFG_KEY = "ef_config_v1";
+/* ---------- CONFIGURAÇÃO (Supabase) — editável na tela "Configuração", guardada no localStorage ---------- */
+const CFG_KEY = "ef_config_v2";
 const CFG_DEFAULT = {
-  ghToken: "",
-  ghRepo: "joaovitorsmg-cmd/Entrega-Futura"
+  sbUrl: "",
+  sbKey: "",
+  sbPass: ""
 };
 function getCfg(){
   try{ return { ...CFG_DEFAULT, ...JSON.parse(localStorage.getItem(CFG_KEY)||"{}") }; }
@@ -752,7 +757,6 @@ function setCfg(patch){
   localStorage.setItem(CFG_KEY, JSON.stringify(next));
   return next;
 }
-const HIST_FIELD = "entregaFutura"; // namespace dentro do bin
 let HIST = { semanas: [], ultimoDetalhe: null, meses: {} }; // semanas=agregados leves; ultimoDetalhe=snapshot p/ comparar; meses=agregado por AAAA-MM
 let COMP = null; // resultado da comparação com a semana anterior
 let SYNC = { status: "noconfig" }; // status: noconfig | ok | empty | ghdirect | err
@@ -943,19 +947,39 @@ const STAT_LABEL={total:"Cobrar total",parc:"Cobrar parcial",ret:"Retido"};
 function pill(s){return `<span class="pill ${s}">${STAT_LABEL[s]}</span>`;}
 
 /* ============================================================
-   HISTÓRICO: carregar / salvar (GitHub) + comparação
+   HISTÓRICO: carregar / salvar (Supabase) + comparação
    ============================================================ */
+
+/* helpers REST do Supabase — sem SDK, sem dependência extra */
+function sbHeaders(cfg, write=false){
+  const h = {"apikey": cfg.sbKey, "Content-Type":"application/json"};
+  if(write) h["Prefer"] = "return=minimal";
+  return h;
+}
+async function sbRead(cfg, key){
+  const res = await fetch(`${cfg.sbUrl}/rest/v1/ef_sync?key=eq.${encodeURIComponent(key)}&select=data`, {headers: sbHeaders(cfg)});
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  const rows = await res.json();
+  return (rows && rows.length) ? rows[0].data : null;
+}
+async function sbWrite(cfg, key, data){
+  const res = await fetch(`${cfg.sbUrl}/rest/v1/rpc/ef_sync_upsert`, {
+    method:"POST", headers: sbHeaders(cfg),
+    body: JSON.stringify({p_key: key, p_password: cfg.sbPass, p_data: data})
+  });
+  if(!res.ok){
+    let msg = "HTTP "+res.status;
+    try{ const err=await res.json(); msg=(err.message||err.hint||msg); }catch(_){}
+    throw new Error(msg);
+  }
+  return true;
+}
+
 async function histLoad(){
   const cfg = getCfg();
-  if(!cfg.ghRepo){ setSync("noconfig"); loadCobrLocal(); syncPrazoUI(); return false; }
+  if(!cfg.sbUrl || !cfg.sbKey){ setSync("noconfig"); loadCobrLocal(); syncPrazoUI(); return false; }
   try{
-    const res = await fetch(`https://raw.githubusercontent.com/${cfg.ghRepo}/main/data/historico.json?t=${Date.now()}`);
-    if(!res.ok){
-      if(res.status === 404){ setSync("empty"); loadCobrLocal(); loadUltimoDetalheLocal(); syncPrazoUI(); return false; }
-      throw new Error("HTTP "+res.status);
-    }
-    const data = await res.json();
-    const node = (data && data[HIST_FIELD]) ? data[HIST_FIELD] : null;
+    const node = await sbRead(cfg, "historico");
     if(node){
       HIST.semanas = Array.isArray(node.semanas) ? node.semanas : [];
       HIST.ultimoDetalhe = node.ultimoDetalhe || null;
@@ -966,16 +990,12 @@ async function histLoad(){
     }else{
       setSync("empty");
     }
-    // mescla cobranças feitas neste navegador e ainda não finalizadas
     loadCobrLocal();
     syncPrazoUI();
-    _histGhSha=null; // força re-fetch do SHA na próxima escrita (outro dispositivo pode ter gravado)
     return true;
   }catch(e){ console.warn("histLoad:", e.message); setSync("err"); loadCobrLocal(); loadUltimoDetalheLocal(); syncPrazoUI(); return false; }
 }
 
-/* lock para serializar escritas concorrentes — evita 409 quando duas ações
-   (ex: deletar importação + Finalizar cobranças) disparam histSave() quase ao mesmo tempo */
 let _histSaveLock = null;
 async function histSave(){
   while(_histSaveLock) await _histSaveLock;
@@ -983,61 +1003,15 @@ async function histSave(){
   _histSaveLock = new Promise(r => _resolveLock = r);
   try{
     const cfg = getCfg();
-    if(!cfg.ghToken || !cfg.ghRepo){ setSync("noconfig"); return false; }
-    // inclui ultimoDetalhe: GitHub não tem limite de tamanho
-    const full = { [HIST_FIELD]: { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA } };
-    const r = await publishHistToGithub(full);
-    setSync(r.ok ? "ok" : "err");
-    if(!r.ok) toast("Falha ao sincronizar com o GitHub: "+r.msg);
-    return r.ok;
-  }finally{ _resolveLock(); _histSaveLock=null; }
-}
-
-/* SHA cacheado do último PUT bem-sucedido — evita GET redundante em escritas rápidas
-   consecutivas (GitHub às vezes serve SHA stale por <1 s após um commit) */
-let _histGhSha = null;
-
-/* fallback: commita data/historico.json direto na main (sem branch/PR)
-   Tenta até 2 vezes: se receber 409 (conflito de SHA), re-busca o SHA atual e repete — isso
-   cobre tanto escritas rápidas no mesmo dispositivo quanto dois dispositivos salvando ao mesmo tempo */
-async function publishHistToGithub(payload){
-  const cfg = getCfg();
-  const api = `https://api.github.com/repos/${cfg.ghRepo}`;
-  const headers = {"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
-  let tentativas = 2;
-  while(tentativas-- > 0){
+    if(!cfg.sbUrl || !cfg.sbKey || !cfg.sbPass){ setSync("noconfig"); return false; }
+    const payload = { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA };
     try{
-      let sha = _histGhSha;
-      if(!sha){
-        const existing = await fetch(`${api}/contents/data/historico.json?ref=main`,{headers});
-        if(existing.ok) sha = (await existing.json()).sha;
-        else if(existing.status!==404) throw new Error("não consegui ler o arquivo atual (HTTP "+existing.status+")");
-      }
-
-      const putRes = await fetch(`${api}/contents/data/historico.json`,{method:"PUT",headers,
-        body:JSON.stringify({
-          message:"Atualiza histórico do Entrega Futura (publicado automaticamente)",
-          content, branch:"main", ...(sha?{sha}:{})
-        })});
-
-      if(putRes.status===409){
-        // conflito de SHA: outro dispositivo gravou entre o GET e o PUT — descarta cache e tenta de novo
-        _histGhSha=null;
-        continue;
-      }
-      if(!putRes.ok){
-        _histGhSha=null;
-        const dica = putRes.status===403
-          ? " — o token não tem permissão de escrita. Gere um novo PAT fine-grained com \"Contents: Read and write\" marcado (o teste de conexão só confere se você tem acesso ao repo, não se o token tem essa permissão)."
-          : "";
-        throw new Error("não consegui gravar o arquivo (HTTP "+putRes.status+")"+dica);
-      }
-      try{ const rd=await putRes.json(); _histGhSha=rd.content?.sha||null; }catch(e){}
-      return {ok:true};
-    }catch(e){ _histGhSha=null; console.warn("publishHistToGithub:", e.message); return {ok:false, msg:e.message}; }
-  }
-  return {ok:false, msg:"conflito de versão após 2 tentativas — recarregue e tente de novo"};
+      await sbWrite(cfg, "historico", payload);
+      setSync("ok"); return true;
+    }catch(e){
+      setSync("err"); toast("Falha ao sincronizar: "+e.message); return false;
+    }
+  }finally{ _resolveLock(); _histSaveLock=null; }
 }
 
 function setSync(status){
@@ -1045,8 +1019,8 @@ function setSync(status){
   const pill = document.getElementById("syncPill");
   if(!pill) return;
   const MAP = {
-    ok:["ok","ti-brand-github","GitHub · sincronizado"],
-    empty:["empty","ti-brand-github","GitHub · sem histórico"],
+    ok:["ok","ti-database","Supabase · sincronizado"],
+    empty:["empty","ti-database","Supabase · sem histórico"],
     err:["err","ti-cloud-x","Erro de sync"],
     noconfig:["","ti-cloud-off","Sem config"]
   };
@@ -1064,25 +1038,27 @@ function renderConfigStatus(){
   if(!box) return;
   const cfg = getCfg();
   const LABEL = {
-    ok:["GitHub · sincronizado","var(--green-dk)","Histórico e cobranças gravados na branch principal do repositório."],
-    empty:["GitHub · sem histórico","var(--text2)","Repositório acessível, mas nenhuma importação foi registrada ainda."],
-    err:["Erro de sync","var(--red-dk)","Não foi possível gravar no GitHub. Verifique o token e as permissões."],
-    noconfig:["Sem config","var(--text3)","Configure o Token e o repositório GitHub para habilitar a sincronização."]
+    ok:["Supabase · sincronizado","var(--green-dk)","Histórico e cobranças gravados no Supabase."],
+    empty:["Supabase · sem histórico","var(--text2)","Banco acessível, mas nenhuma importação registrada ainda."],
+    err:["Erro de sync","var(--red-dk)","Não foi possível gravar no Supabase. Verifique a senha e as configurações."],
+    noconfig:["Sem config","var(--text3)","Configure a URL e a chave do Supabase para habilitar a sincronização."]
   };
   const [label,color,desc] = LABEL[SYNC.status]||LABEL.noconfig;
   box.innerHTML = `
     <div style="font-size:13px;color:var(--text2);margin-bottom:4px">Status atual</div>
     <div style="font-size:17px;font-weight:800;color:${color};margin-bottom:6px">${label}</div>
     <p class="muted" style="font-size:12.5px;margin-bottom:10px">${desc}</p>
-    <div style="font-size:12px;color:var(--text3)">Repositório: <code>${esc(cfg.ghRepo||"—")}</code></div>
-    <div style="font-size:12px;color:var(--text3)">Token: ${cfg.ghToken?'<span style="color:var(--green-dk)">configurado</span>':'<span style="color:var(--amber-dk)">não configurado — leitura funciona, escrita não</span>'}</div>
+    <div style="font-size:12px;color:var(--text3)">URL: <code>${esc(cfg.sbUrl||"—")}</code></div>
+    <div style="font-size:12px;color:var(--text3)">Anon key: ${cfg.sbKey?'<span style="color:var(--green-dk)">configurada</span>':'<span style="color:var(--amber-dk)">não configurada</span>'}</div>
+    <div style="font-size:12px;color:var(--text3)">Senha de sync: ${cfg.sbPass?'<span style="color:var(--green-dk)">configurada</span>':'<span style="color:var(--amber-dk)">não configurada — leitura funciona, escrita não</span>'}</div>
     <div style="font-size:12px;color:var(--text3);margin-top:6px"><b>${HIST.semanas.length}</b> importação(ões) no histórico · <b>${Object.keys(COBR).length}</b> item(ns) cobrado(s)</div>`;
 }
 function wireConfigPage(){
   const cfg = getCfg();
   const $ = id => document.getElementById(id);
-  $("cfgGhToken").value = cfg.ghToken;
-  $("cfgGhRepo").value = cfg.ghRepo;
+  $("cfgSbUrl").value = cfg.sbUrl;
+  $("cfgSbKey").value = cfg.sbKey;
+  $("cfgSbPass").value = cfg.sbPass;
 
   const showResult = (ok, msg) => {
     const box = $("cfgTestResult");
@@ -1090,29 +1066,27 @@ function wireConfigPage(){
     box.innerHTML = `<span style="color:${ok?'var(--green-dk)':'var(--red-dk)'}">${esc(msg)}</span>`;
   };
 
-  $("cfgToggleTok").onclick = () => { const i=$("cfgGhToken"); i.type = i.type==="password"?"text":"password"; };
+  $("cfgTogglePass").onclick = () => { const i=$("cfgSbPass"); i.type = i.type==="password"?"text":"password"; };
 
   $("cfgSave").onclick = () => {
     setCfg({
-      ghToken: $("cfgGhToken").value.trim(),
-      ghRepo: $("cfgGhRepo").value.trim()
+      sbUrl: $("cfgSbUrl").value.trim().replace(/\/+$/, ""),
+      sbKey: $("cfgSbKey").value.trim(),
+      sbPass: $("cfgSbPass").value.trim()
     });
     toast("Configuração salva neste navegador.");
     histLoad();
   };
 
-  $("cfgTestGithub").onclick = async () => {
-    const token=$("cfgGhToken").value.trim(), repo=$("cfgGhRepo").value.trim();
-    if(!repo){ showResult(false,"Informe o repositório (owner/repo)."); return; }
+  $("cfgTestSupabase").onclick = async () => {
+    const url=$("cfgSbUrl").value.trim().replace(/\/+$/,""), key=$("cfgSbKey").value.trim();
+    if(!url || !key){ showResult(false,"Informe a URL e a anon key do Supabase."); return; }
     try{
-      const headers = token ? {"Authorization":`Bearer ${token}`,"Accept":"application/vnd.github+json"} : {"Accept":"application/vnd.github+json"};
-      const res = await fetch(`https://api.github.com/repos/${repo}`, {headers});
-      if(!res.ok) throw new Error("HTTP "+res.status);
-      const data = await res.json();
-      const perms = data.permissions||{};
-      const escrita = token ? (perms.push ? "✔ escrita habilitada" : "✘ sem permissão de escrita — gere um PAT fine-grained com Contents: Read and write") : "token não informado — leitura pública ok, escrita não disponível";
-      showResult(!!token && !!perms.push, `Repositório: ${data.full_name}. ${escrita}.`);
-    }catch(e){ showResult(false,"Falha ao conectar com o GitHub: "+e.message); }
+      const res = await fetch(`${url}/rest/v1/ef_sync?limit=1`, {headers:{"apikey":key,"Content-Type":"application/json"}});
+      if(res.status===401||res.status===403) throw new Error("anon key inválida ou sem permissão de leitura (RLS)");
+      if(!res.ok) throw new Error("HTTP "+res.status+" — verifique a URL do projeto");
+      showResult(true, "✔ Conexão com Supabase OK. Leitura acessível.");
+    }catch(e){ showResult(false,"Falha ao conectar: "+e.message); }
   };
 
   renderConfigStatus();
@@ -1177,9 +1151,9 @@ async function registrarImportacao(isNewImport){
   if(RENDERED_PAGES.has("evolucao")) renderEvolucao(ok);
   saveLocalSnapshot();
   const cfg=getCfg();
-  if(cfg.ghToken && cfg.ghRepo){
-    const pubOk = await publishBaseToGithub();
-    if(!pubOk) toast("Importação salva neste navegador, mas não consegui publicar a base para todos no GitHub.");
+  if(cfg.sbUrl && cfg.sbKey && cfg.sbPass){
+    const pubOk = await publishBaseToSupabase();
+    if(!pubOk) toast("Importação salva neste navegador, mas não consegui publicar a base no Supabase.");
   }
 }
 let lastSyncOk=null;
@@ -1293,7 +1267,7 @@ function saveCobrLocal(){
   try{ localStorage.setItem(COBR_KEY, JSON.stringify({cobr:COBR, dias:DIAS_REINCIDENCIA})); }
   catch(e){ console.warn("saveCobrLocal:", e.message); }
   const el=document.getElementById("cobrStatus");
-  if(el) el.innerHTML=`<i class="ti ti-device-floppy"></i> Alterações salvas neste navegador. Clique em "Finalizar cobranças" para sincronizar com o GitHub.`;
+  if(el) el.innerHTML=`<i class="ti ti-device-floppy"></i> Alterações salvas neste navegador. Clique em "Finalizar cobranças" para sincronizar com o Supabase.`;
 }
 function loadCobrLocal(){
   try{
@@ -1332,7 +1306,7 @@ async function persistirCobranca(){
   const ok=await histSave();
   const el=document.getElementById("cobrStatus");
   if(el) el.innerHTML = ok
-    ? `<i class="ti ti-brand-github"></i> Registro de cobranças sincronizado no GitHub.`
+    ? `<i class="ti ti-database"></i> Registro de cobranças sincronizado no Supabase.`
     : `<i class="ti ti-cloud-x"></i> Não consegui gravar agora; tentará na próxima ação.`;
 }
 async function deletarImportacao(dataStr){
@@ -1492,48 +1466,26 @@ function loadLocalSnapshot(){
   }catch(e){ console.warn("loadLocalSnapshot:", e.message); return false; }
 }
 
-/* ---------- base compartilhada via GitHub: assim qualquer pessoa que abrir o link vê a
-   mesma base, sem precisar importar o XLS nela mesma (o localStorage acima é só por navegador) ---------- */
-const BASE_DATA_PATH="data/base-atual.json";
-let _baseGhSha=null; // SHA cacheado do último PUT bem-sucedido de base-atual.json
-async function publishBaseToGithub(){
+/* ---------- base compartilhada via Supabase: qualquer pessoa que abrir o link vê a
+   mesma base, sem precisar importar o XLS ---------- */
+async function publishBaseToSupabase(){
   const cfg=getCfg();
-  if(!cfg.ghToken || !cfg.ghRepo) return false;
-  const api=`https://api.github.com/repos/${cfg.ghRepo}`;
-  const headers={"Authorization":`Bearer ${cfg.ghToken}`,"Accept":"application/vnd.github+json"};
+  if(!cfg.sbUrl || !cfg.sbKey || !cfg.sbPass) return false;
   const payload={records:RECORDS, dataRef:dataRef.toISOString(), fileName:document.getElementById("metaFile").textContent};
-  const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  let tentativas=2;
-  while(tentativas-->0){
-    try{
-      let sha=_baseGhSha;
-      if(!sha){
-        const existing=await fetch(`${api}/contents/${BASE_DATA_PATH}?ref=main`,{headers});
-        if(existing.ok) sha=(await existing.json()).sha;
-      }
-      const putRes=await fetch(`${api}/contents/${BASE_DATA_PATH}`,{method:"PUT",headers,
-        body:JSON.stringify({message:"Atualiza base atual do Entrega Futura", content, branch:"main", ...(sha?{sha}:{})})});
-      if(putRes.status===409){ _baseGhSha=null; continue; }
-      if(!putRes.ok){ _baseGhSha=null; throw new Error("HTTP "+putRes.status); }
-      try{ const rd=await putRes.json(); _baseGhSha=rd.content?.sha||null; }catch(e){}
-      return true;
-    }catch(e){ _baseGhSha=null; console.warn("publishBaseToGithub:", e.message); return false; }
-  }
-  return false;
+  try{ await sbWrite(cfg, "base_atual", payload); return true; }
+  catch(e){ console.warn("publishBaseToSupabase:", e.message); return false; }
 }
-async function loadBaseFromGithub(){
+async function loadBaseFromSupabase(){
   const cfg=getCfg();
-  if(!cfg.ghRepo) return false;
+  if(!cfg.sbUrl || !cfg.sbKey) return false;
   try{
-    const res=await fetch(`https://raw.githubusercontent.com/${cfg.ghRepo}/main/${BASE_DATA_PATH}?t=${Date.now()}`);
-    if(!res.ok) return false;
-    const data=await res.json();
-    if(!data.records || !data.records.length) return false;
+    const data=await sbRead(cfg, "base_atual");
+    if(!data || !data.records || !data.records.length) return false;
     RECORDS=data.records.map(r=>({...r, emissao:r.emissao?new Date(r.emissao):null}));
     dataRef=new Date(data.dataRef);
     document.getElementById("metaFile").textContent=data.fileName||"Base compartilhada";
     return true;
-  }catch(e){ console.warn("loadBaseFromGithub:", e.message); return false; }
+  }catch(e){ console.warn("loadBaseFromSupabase:", e.message); return false; }
 }
 
 /* ============================================================
@@ -2405,8 +2357,8 @@ function renderEvolucao(saveOk,loading){
     cmp.innerHTML=`<div class="insight warn"><h3><i class="ti ti-info-circle"></i> Sem semana anterior para comparar</h3>
       <p>Esta é a primeira importação registrada. A partir da próxima vez que você subir um relatório, o painel mostra aqui o que foi entregue e o que continua parado — incluindo pedidos específicos.</p></div>`;
   }
-  if(saveOk===true) status.innerHTML=`<i class="ti ti-brand-github"></i> Histórico sincronizado no GitHub. <b>${HIST.semanas.length}</b> importação(ões) registrada(s).`;
-  else if(saveOk===false){const cfg=getCfg();status.innerHTML=(cfg.ghToken&&cfg.ghRepo)?`<i class="ti ti-cloud-x"></i> Não consegui gravar no GitHub agora. A comparação desta sessão continua válida; tentará de novo na próxima importação.`:`<i class="ti ti-device-floppy"></i> Histórico salvo localmente. Configure o GitHub na aba <b>Configuração</b> para sincronizar entre dispositivos.`;}
+  if(saveOk===true) status.innerHTML=`<i class="ti ti-database"></i> Histórico sincronizado no Supabase. <b>${HIST.semanas.length}</b> importação(ões) registrada(s).`;
+  else if(saveOk===false){const cfg=getCfg();status.innerHTML=(cfg.sbUrl&&cfg.sbKey)?`<i class="ti ti-cloud-x"></i> Não consegui gravar no Supabase agora. A comparação desta sessão continua válida; tentará de novo na próxima importação.`:`<i class="ti ti-device-floppy"></i> Histórico salvo localmente. Configure o Supabase na aba <b>Configuração</b> para sincronizar entre dispositivos.`;}
   else if(!loading) status.innerHTML=`<i class="ti ti-refresh"></i> Verificando sincronização…`;
 
   if(!sortState.tblHist) sortState.tblHist={k:"data",dir:-1};
@@ -2767,7 +2719,7 @@ function toast(msg, action){
 if(loadLocalSnapshot()){
   bootApp(false);
 }else{
-  loadBaseFromGithub().then(ok=>{ if(ok) bootApp(false); });
+  loadBaseFromSupabase().then(ok=>{ if(ok) bootApp(false); });
 }
 
 /* registra o service worker para permitir "Adicionar à tela inicial" / instalar como app */
