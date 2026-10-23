@@ -605,25 +605,11 @@ tbody tr:last-child td{border-bottom:none}
 
       <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start">
         <div class="card-box">
-          <h3 style="margin-top:0"><i class="ti ti-database"></i> Configuração Supabase</h3>
-
-          <label>URL do projeto</label>
-          <input type="text" id="cfgSbUrl" placeholder="https://xxxx.supabase.co" style="width:100%;margin-bottom:10px">
-
-          <label>Anon key (pública)</label>
-          <input type="text" id="cfgSbKey" placeholder="eyJhbGciOi…" style="width:100%;margin-bottom:10px;font-size:11.5px">
-          <p class="muted" style="margin:0 0 12px">Encontre em <b>Supabase → Project Settings → API</b>. A anon key é pública — pode ficar no navegador.</p>
-
-          <label>Senha de sync (protege a escrita)</label>
-          <div style="display:flex;gap:8px">
-            <input type="password" id="cfgSbPass" style="flex:1" placeholder="senha definida no banco…">
-            <button class="btn ghost" id="cfgTogglePass" title="Mostrar / ocultar senha"><i class="ti ti-eye"></i></button>
-          </div>
-          <p class="muted" style="margin:4px 0 14px">Definida via SQL no setup do Supabase. Fica só neste navegador.</p>
+          <h3 style="margin-top:0"><i class="ti ti-database"></i> Sincronização Supabase</h3>
+          <p class="muted" style="margin-bottom:14px">Projeto <b>producao-ubs-fagro</b> (São Paulo) — configurado automaticamente. Sem chaves manuais.</p>
 
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn ghost" id="cfgTestSupabase"><i class="ti ti-plug-connected"></i> Testar conexão</button>
-            <button class="btn primary" id="cfgSave"><i class="ti ti-device-floppy"></i> Salvar</button>
           </div>
           <div id="cfgTestResult" class="note" style="margin-top:12px;display:none"></div>
         </div>
@@ -635,8 +621,7 @@ tbody tr:last-child td{border-bottom:none}
           <ul class="muted" style="padding-left:18px;line-height:1.7">
             <li><b style="color:var(--green-dk)">Supabase · sincronizado</b> — histórico e cobranças gravados no banco.</li>
             <li><b style="color:var(--text2)">Supabase · sem histórico</b> — banco acessível, nenhuma importação registrada ainda.</li>
-            <li><b style="color:var(--red-dk)">Erro de sync</b> — falha ao gravar. Verifique a senha e as configurações.</li>
-            <li><b class="muted">Sem config</b> — URL ou anon key não configuradas.</li>
+            <li><b style="color:var(--red-dk)">Erro de sync</b> — falha ao gravar.</li>
           </ul>
         </div>
       </div>
@@ -741,12 +726,11 @@ initTheme();
 let RECORDS = [];
 let dataRef = new Date();
 
-/* ---------- CONFIGURAÇÃO (Supabase) — editável na tela "Configuração", guardada no localStorage ---------- */
+/* ---------- CONFIGURAÇÃO (Supabase) ---------- */
 const CFG_KEY = "ef_config_v2";
 const CFG_DEFAULT = {
-  sbUrl: "",
-  sbKey: "",
-  sbPass: ""
+  sbUrl: "https://yeburvkopwbmnfcmthtz.supabase.co",
+  sbKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllYnVydmtvcHdibW5mY210aHR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2ODk5NDMsImV4cCI6MjEwODI2NTk0M30.3t-4Q8SM9XV0OdQLHktMUmKNItg1byBkyv0HGN3B-74"
 };
 function getCfg(){
   try{ return { ...CFG_DEFAULT, ...JSON.parse(localStorage.getItem(CFG_KEY)||"{}") }; }
@@ -951,10 +935,8 @@ function pill(s){return `<span class="pill ${s}">${STAT_LABEL[s]}</span>`;}
    ============================================================ */
 
 /* helpers REST do Supabase — sem SDK, sem dependência extra */
-function sbHeaders(cfg, write=false){
-  const h = {"apikey": cfg.sbKey, "Content-Type":"application/json"};
-  if(write) h["Prefer"] = "return=minimal";
-  return h;
+function sbHeaders(cfg){
+  return {"apikey": cfg.sbKey, "Content-Type":"application/json"};
 }
 async function sbRead(cfg, key){
   const res = await fetch(`${cfg.sbUrl}/rest/v1/ef_sync?key=eq.${encodeURIComponent(key)}&select=data`, {headers: sbHeaders(cfg)});
@@ -963,9 +945,10 @@ async function sbRead(cfg, key){
   return (rows && rows.length) ? rows[0].data : null;
 }
 async function sbWrite(cfg, key, data){
-  const res = await fetch(`${cfg.sbUrl}/rest/v1/rpc/ef_sync_upsert`, {
-    method:"POST", headers: sbHeaders(cfg),
-    body: JSON.stringify({p_key: key, p_password: cfg.sbPass, p_data: data})
+  const res = await fetch(`${cfg.sbUrl}/rest/v1/ef_sync`, {
+    method:"POST",
+    headers: {...sbHeaders(cfg), "Prefer":"resolution=merge-duplicates"},
+    body: JSON.stringify({key, data, updated_at: new Date().toISOString()})
   });
   if(!res.ok){
     let msg = "HTTP "+res.status;
@@ -1003,7 +986,7 @@ async function histSave(){
   _histSaveLock = new Promise(r => _resolveLock = r);
   try{
     const cfg = getCfg();
-    if(!cfg.sbUrl || !cfg.sbKey || !cfg.sbPass){ setSync("noconfig"); return false; }
+    if(!cfg.sbUrl || !cfg.sbKey){ setSync("noconfig"); return false; }
     const payload = { ...HIST, cobrancas: COBR, diasReincidencia: DIAS_REINCIDENCIA };
     try{
       await sbWrite(cfg, "historico", payload);
@@ -1048,17 +1031,12 @@ function renderConfigStatus(){
     <div style="font-size:13px;color:var(--text2);margin-bottom:4px">Status atual</div>
     <div style="font-size:17px;font-weight:800;color:${color};margin-bottom:6px">${label}</div>
     <p class="muted" style="font-size:12.5px;margin-bottom:10px">${desc}</p>
-    <div style="font-size:12px;color:var(--text3)">URL: <code>${esc(cfg.sbUrl||"—")}</code></div>
-    <div style="font-size:12px;color:var(--text3)">Anon key: ${cfg.sbKey?'<span style="color:var(--green-dk)">configurada</span>':'<span style="color:var(--amber-dk)">não configurada</span>'}</div>
-    <div style="font-size:12px;color:var(--text3)">Senha de sync: ${cfg.sbPass?'<span style="color:var(--green-dk)">configurada</span>':'<span style="color:var(--amber-dk)">não configurada — leitura funciona, escrita não</span>'}</div>
+    <div style="font-size:12px;color:var(--text3)">Projeto: <code>producao-ubs-fagro</code> · Tabela: <code>ef_sync</code></div>
     <div style="font-size:12px;color:var(--text3);margin-top:6px"><b>${HIST.semanas.length}</b> importação(ões) no histórico · <b>${Object.keys(COBR).length}</b> item(ns) cobrado(s)</div>`;
 }
 function wireConfigPage(){
   const cfg = getCfg();
   const $ = id => document.getElementById(id);
-  $("cfgSbUrl").value = cfg.sbUrl;
-  $("cfgSbKey").value = cfg.sbKey;
-  $("cfgSbPass").value = cfg.sbPass;
 
   const showResult = (ok, msg) => {
     const box = $("cfgTestResult");
@@ -1066,26 +1044,11 @@ function wireConfigPage(){
     box.innerHTML = `<span style="color:${ok?'var(--green-dk)':'var(--red-dk)'}">${esc(msg)}</span>`;
   };
 
-  $("cfgTogglePass").onclick = () => { const i=$("cfgSbPass"); i.type = i.type==="password"?"text":"password"; };
-
-  $("cfgSave").onclick = () => {
-    setCfg({
-      sbUrl: $("cfgSbUrl").value.trim().replace(/\/+$/, ""),
-      sbKey: $("cfgSbKey").value.trim(),
-      sbPass: $("cfgSbPass").value.trim()
-    });
-    toast("Configuração salva neste navegador.");
-    histLoad();
-  };
-
   $("cfgTestSupabase").onclick = async () => {
-    const url=$("cfgSbUrl").value.trim().replace(/\/+$/,""), key=$("cfgSbKey").value.trim();
-    if(!url || !key){ showResult(false,"Informe a URL e a anon key do Supabase."); return; }
     try{
-      const res = await fetch(`${url}/rest/v1/ef_sync?limit=1`, {headers:{"apikey":key,"Content-Type":"application/json"}});
-      if(res.status===401||res.status===403) throw new Error("anon key inválida ou sem permissão de leitura (RLS)");
-      if(!res.ok) throw new Error("HTTP "+res.status+" — verifique a URL do projeto");
-      showResult(true, "✔ Conexão com Supabase OK. Leitura acessível.");
+      const res = await fetch(`${cfg.sbUrl}/rest/v1/ef_sync?limit=1`, {headers:{"apikey":cfg.sbKey,"Content-Type":"application/json"}});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      showResult(true, "✔ Conexão com Supabase OK (producao-ubs-fagro · ef_sync).");
     }catch(e){ showResult(false,"Falha ao conectar: "+e.message); }
   };
 
@@ -1151,7 +1114,7 @@ async function registrarImportacao(isNewImport){
   if(RENDERED_PAGES.has("evolucao")) renderEvolucao(ok);
   saveLocalSnapshot();
   const cfg=getCfg();
-  if(cfg.sbUrl && cfg.sbKey && cfg.sbPass){
+  if(cfg.sbUrl && cfg.sbKey){
     const pubOk = await publishBaseToSupabase();
     if(!pubOk) toast("Importação salva neste navegador, mas não consegui publicar a base no Supabase.");
   }
@@ -1470,7 +1433,7 @@ function loadLocalSnapshot(){
    mesma base, sem precisar importar o XLS ---------- */
 async function publishBaseToSupabase(){
   const cfg=getCfg();
-  if(!cfg.sbUrl || !cfg.sbKey || !cfg.sbPass) return false;
+  if(!cfg.sbUrl || !cfg.sbKey) return false;
   const payload={records:RECORDS, dataRef:dataRef.toISOString(), fileName:document.getElementById("metaFile").textContent};
   try{ await sbWrite(cfg, "base_atual", payload); return true; }
   catch(e){ console.warn("publishBaseToSupabase:", e.message); return false; }
